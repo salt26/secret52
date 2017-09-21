@@ -62,7 +62,7 @@ public class BattleManager : NetworkBehaviour
     private void Awake()
     {
         bm = this;
-        Debug.Log("BattleManager Awake.");
+        //Debug.Log("BattleManager Awake.");
 
         turnStep = 0;
         cd = GetComponent<CardDatabase>();
@@ -71,8 +71,8 @@ public class BattleManager : NetworkBehaviour
     public override void OnStartServer()
     {
         base.OnStartServer();
-        Debug.Log("playerNumber: " + LobbyManager.s_Singleton._playerNumber);
-        Debug.Log("numPlayers: " + LobbyManager.s_Singleton.numPlayers);
+        //Debug.Log("playerNumber: " + LobbyManager.s_Singleton._playerNumber);
+        //Debug.Log("numPlayers: " + LobbyManager.s_Singleton.numPlayers);
         StartCoroutine("StartGame");
     }
 
@@ -101,6 +101,7 @@ public class BattleManager : NetworkBehaviour
             p1.GetComponent<PlayerControl>().color = new Color(0.816f, 0.216f, 0.059f);
             p1.GetComponent<NetworkIdentity>().localPlayerAuthority = false;
             NetworkServer.Spawn(p1);
+            p1.GetComponent<PlayerControl>().RpcSetAI(true);
         }
         if (playerReady.IndexOf(1) == -1)
         {
@@ -110,6 +111,7 @@ public class BattleManager : NetworkBehaviour
             p2.GetComponent<PlayerControl>().color = new Color(0.875f, 0.867f, 0.529f);
             p2.GetComponent<NetworkIdentity>().localPlayerAuthority = false;
             NetworkServer.Spawn(p2);
+            p2.GetComponent<PlayerControl>().RpcSetAI(true);
         }
         if (playerReady.IndexOf(2) == -1)
         {
@@ -119,6 +121,7 @@ public class BattleManager : NetworkBehaviour
             p3.GetComponent<PlayerControl>().color = new Color(0.106f, 0.69f, 0.208f);
             p3.GetComponent<NetworkIdentity>().localPlayerAuthority = false;
             NetworkServer.Spawn(p3);
+            p3.GetComponent<PlayerControl>().RpcSetAI(true);
         }
         if (playerReady.IndexOf(3) == -1)
         {
@@ -128,6 +131,7 @@ public class BattleManager : NetworkBehaviour
             p4.GetComponent<PlayerControl>().color = new Color(0.424f, 0.376f, 1f);
             p4.GetComponent<NetworkIdentity>().localPlayerAuthority = false;
             NetworkServer.Spawn(p4);
+            p4.GetComponent<PlayerControl>().RpcSetAI(true);
         }
         if (playerReady.IndexOf(4) == -1)
         {
@@ -137,6 +141,7 @@ public class BattleManager : NetworkBehaviour
             p5.GetComponent<PlayerControl>().color = new Color(0.369f, 0.106f, 0.427f);
             p5.GetComponent<NetworkIdentity>().localPlayerAuthority = false;
             NetworkServer.Spawn(p5);
+            p5.GetComponent<PlayerControl>().RpcSetAI(true);
         }
 
         List<int> temp = RandomListGenerator(5);
@@ -293,6 +298,7 @@ public class BattleManager : NetworkBehaviour
             exchange.SetFreezed(players[turnPlayer]);
             NetworkServer.Spawn(ex);
 
+            players[turnPlayer].Freeze();
             players[turnPlayer].RpcFreeze();
             turnStep = 11;
         }
@@ -647,8 +653,8 @@ public class BattleManager : NetworkBehaviour
     [ClientRpc]
     public void RpcPrintLog(string msg)
     {
-        ConsoleLogUI.AddText(msg);
-        Debug.Log(msg);
+        //ConsoleLogUI.AddText(msg);
+        //Debug.Log(msg);
     }
 
     [ClientRpc]

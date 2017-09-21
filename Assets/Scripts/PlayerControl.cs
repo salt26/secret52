@@ -347,7 +347,7 @@ public class PlayerControl : NetworkBehaviour
         }
         else
         {
-            int i = bm.players.IndexOf(objectTarget);
+            int i = bm.GetPlayers().IndexOf(objectTarget);
             CmdSetObjectPlayer(i);
             objectTarget = null;
         }
@@ -482,7 +482,7 @@ public class PlayerControl : NetworkBehaviour
             b = true;
             for (int i = 0; i < 5; i++)
             {
-                if (bm.players[i] == null)
+                if (bm.GetPlayers()[i] == null)
                 {
                     b = false;
                     break;
@@ -490,16 +490,16 @@ public class PlayerControl : NetworkBehaviour
             }
             yield return null;
         } while (!b);
-        //Log(bm.players[t[0]].GetName() + " is my objective.");
-        bm.players[t[0]].SetHighlight(true);
-        //Log(bm.players[t[1]].GetName() + " is my objective, too.");
-        bm.players[t[1]].SetHighlight(true);
+        //Log(bm.GetPlayers()[t[0]].GetName() + " is my objective.");
+        bm.GetPlayers()[t[0]].SetHighlight(true);
+        //Log(bm.GetPlayers()[t[1]].GetName() + " is my objective, too.");
+        bm.GetPlayers()[t[1]].SetHighlight(true);
     }
     
     private void Log(string msg)
     {
-        Debug.Log(msg);
-        ConsoleLogUI.AddText(msg);
+        //Debug.Log(msg);
+        //ConsoleLogUI.AddText(msg);
     }
 
     /*
@@ -599,6 +599,13 @@ public class PlayerControl : NetworkBehaviour
     }
 
     [ClientRpc]
+    public void RpcSetAI(bool AI)
+    {
+        isAI = AI;
+        GetComponent<NetworkIdentity>().localPlayerAuthority = false;
+    }
+
+    [ClientRpc]
     public void RpcFreeze()
     {
         StartCoroutine("FreezeAnimation");
@@ -620,6 +627,11 @@ public class PlayerControl : NetworkBehaviour
     public void RpcDead()
     {
         StartCoroutine("DeadAnimation");
+    }
+
+    public void Freeze()
+    {
+        StartCoroutine("FreezeAnimation");
     }
 
     IEnumerator HealedAnimation()
@@ -693,8 +705,10 @@ public class PlayerControl : NetworkBehaviour
             yield return null;
         }
         Ice.GetComponent<SpriteRenderer>().color = new Color(1f, 1f, 1f, 0f);
-        if (isAI) bm.AfterFreezed();
-        else CmdAfterFreezed();
+        //Log("In client, " + GetName() + " isAI? " + isAI + ", then why not thawed?");
+        //if (isServer) bm.RpcPrintLog("In server, " + GetName() + " isAI? " + isAI + ", then why not thawed?");
+        if (isAI && isServer) bm.AfterFreezed();
+        else if (isLocalPlayer) CmdAfterFreezed();
     }
 
     //조작화면에서 빙결이 일어나는 애니메이션
@@ -707,7 +721,7 @@ public class PlayerControl : NetworkBehaviour
     {
         yield return new WaitForSeconds(Random.Range(1.5f, 3f));
         AIThinking(null);   // 여기서 objectTarget과 playCardAI를 설정함.
-        int i = bm.players.IndexOf(objectTarget);
+        int i = bm.GetPlayers().IndexOf(objectTarget);
         bm.SetObjectPlayer(i);
         objectTarget = null;
         bm.SetCardToPlay(playCardAI.GetCardCode(), GetPlayerIndex());
@@ -729,33 +743,62 @@ public class PlayerControl : NetworkBehaviour
     /// <summary>
     /// 인공지능이 생각하여 교환할 대상과 교환할 카드를 결정하게 하는 함수입니다. 인자로 null이 아닌 값을 주면 교환할 카드만 정합니다.
     /// </summary>
-    /// <param name="opposite">교환을 요청해온 상대</param>
-    private void AIThinking(PlayerControl opposite)
+    /// <param name="opponent">교환을 요청해온 상대</param>
+    private void AIThinking(PlayerControl opponent)
     {
         List<int> playerClass = AIObjectRelation();
 
-        /* TODO 임시 코드 
+        /* TODO 임시 코드 */
         string m = "";
         for (int i = 0; i < 5; i++)
         {
             m += playerClass[i] + " ";
         }
         bm.RpcPrintLog(m);
-        */
+        
 
-        AIHandEstimation();
+        List<string> hand = AIHandEstimation();
         // TODO 손패 상황 목록을 받으면 특정 상대와 교환할 때 어떤 카드를 받게 될지 추정하기
         // TODO 특정 상대에게 특정 카드를 줄 때의 결과를 생각하여 행동 점수를 매기고, 점수에 해당하는 수만큼 상자에 제비뽑기를 넣어 랜덤으로 하나 뽑기
-        List<Card> hand = bm.GetPlayerHand(this);
-        if (opposite == null) {
+        List<Card> myHand = bm.GetPlayerHand(this);
+        List<string> decisionBox = new List<string>(); // 이 목록에 제비뽑기를 넣고 나중에 하나 뽑아 나온 행동을 한다.
+        if (opponent == null) {
+            for (int i = 0; i < 5; i++)
+            {
+                if (i == GetPlayerIndex()) continue;
+                string opponentCard = AIOpponentPlay(playerClass[i], hand[2 * i], hand[2 * i + 1], bm.GetPlayers()[i].GetHealth());
+                bm.RpcPrintLog("opponentCard is " + opponentCard + ".");
+                AIScoreBehavior(myHand[0].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
+                AIScoreBehavior(myHand[1].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
+            }
             // TODO 랜덤 말고 인공지능으로 고치기
+            /*
             do
             {
                 objectTarget = bm.GetPlayers()[Random.Range(0, 5)];
             } while (objectTarget == null || objectTarget.Equals(this));
+            */
+        }
+        else
+        {
+            int i = opponent.GetPlayerIndex();
+            string opponentCard = AIOpponentPlay(playerClass[i], hand[2 * i], hand[2 * i + 1], bm.GetPlayers()[i].GetHealth());
+            bm.RpcPrintLog("opponentCard is " + opponentCard + ".");
+            AIScoreBehavior(myHand[0].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
+            AIScoreBehavior(myHand[1].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
         }
         // TODO 랜덤 말고 인공지능으로 고치기
-        playCardAI = hand[Random.Range(0, 2)];
+        string lottery = decisionBox[Random.Range(0, decisionBox.Count)];
+        bm.RpcPrintLog("lottery is " + lottery + ".");
+        if (opponent == null)
+        {
+            objectTarget = bm.GetPlayers()[int.Parse(lottery[0].ToString())];
+        }
+        lottery = lottery.Substring(1);
+        if (myHand[0].GetCardName() == lottery) playCardAI = myHand[0];
+        else if (myHand[1].GetCardName() == lottery) playCardAI = myHand[1];
+        else Debug.LogError("lottery is invalid.");
+        // playCardAI = myHand[Random.Range(0, 2)];
     }
 
     /// <summary>
@@ -884,7 +927,7 @@ public class PlayerControl : NetworkBehaviour
     /// <summary>
     /// 인공지능이 각 플레이어가 어떤 카드를 손패에 들고 있는지 추정하게 하는 함수입니다.
     /// </summary>
-    private void AIHandEstimation()
+    private List<string> AIHandEstimation()
     {
         // TODO 각 플레이어가 했던 마지막 교환의 결과를 바탕으로 현재 손패의 카드 분배 상황을 추정해서 목록으로 반환하기
         List<Card> myHand = bm.GetPlayerHand(this);
@@ -1008,6 +1051,7 @@ public class PlayerControl : NetworkBehaviour
             m += " " + ((i/2)+1) + handName[i];
         }
         Log(m);
+        if (isServer) bm.RpcPrintLog(m);
 
         int r;
         if (handName.IndexOf("Bomb") == -1 && handName.IndexOf("?") != -1)
@@ -1071,5 +1115,618 @@ public class PlayerControl : NetworkBehaviour
             m2 += " " + ((i / 2) + 1) + handName[i];
         }
         Log(m2);
+
+        return handName;
+    }
+
+    /// <summary>
+    /// 인공지능이 상대가 자신에게 어떤 카드를 내려고 할지 예측하게 하는 함수입니다.
+    /// </summary>
+    /// <param name="playerClass">자신이 바라보는, 자신에 대한 상대의 목표 관계</param>
+    /// <param name="card1">상대 손패에 있을 것 같은 카드</param>
+    /// <param name="card2">상대 손패에 있을 것 같은 카드</param>
+    /// <param name="opponentHealth">상대의 교환 전 남은 체력</param>
+    /// <returns>상대가 낼 것으로 생각되는 카드 이름</returns>
+    private string AIOpponentPlay(int playerClass, string card1, string card2, int opponentHealth)
+    {
+        CardDatabase cd = GameObject.Find("BattleManager").GetComponent<CardDatabase>();
+        if (cd == null)
+        {
+            Debug.Log("cd is null in AIopponentPlay.");
+            return "Error!";
+        }
+        else if (playerClass < 0 || playerClass > 3)
+        {
+            Debug.Log("playerClass out of range [0, 3].");
+            return "Error!";
+        }
+        else if (!cd.VerifyCard(card1) || !cd.VerifyCard(card2))
+        {
+            Debug.Log("card1 or card2 is invalid.");
+            return "Error!";
+        }
+
+        // 상대가 들고 있는 두 카드가 같은 경우 그것밖에 낼 수 없다.
+        if (card1 == card2 && (card1 == "Attack" || card1 == "Heal"))
+        {
+            return card1;
+        }
+        else if (card1 == card2)
+        {
+            Debug.Log("How do you have two " + card1 + " cards?");
+            return "Error!";
+        }
+
+        // 공격, 치유, 폭탄, 회피, 속임, 빙결 순으로 정렬 (하드코딩 주의!)
+        if (card2 == "Attack")
+        {
+            string temp = card1;
+            card1 = card2;
+            card2 = temp;
+        }
+        if (card1 != "Attack")
+        {
+            if (card2 == "Heal")
+            {
+                string temp = card1;
+                card1 = card2;
+                card2 = temp;
+            }
+            if (card1 != "Heal")
+            {
+                if (card2 == "Bomb")
+                {
+                    string temp = card1;
+                    card1 = card2;
+                    card2 = temp;
+                }
+                if (card1 != "Bomb")
+                {
+                    if (card2 == "Avoid")
+                    {
+                        string temp = card1;
+                        card1 = card2;
+                        card2 = temp;
+                    }
+                    if (card1 != "Avoid")
+                    {
+                        if (card2 == "Deceive")
+                        {
+                            string temp = card1;
+                            card1 = card2;
+                            card2 = temp;
+                        }
+                    }
+                }
+            }
+        }
+
+        card1 += card2; // 편의상 이름을 합치기로
+
+        switch (playerClass)
+        {
+            case 0: // 서로 아무 관계도 아니라고 생각
+                switch (card1)
+                {
+                    case "AttackHeal":
+                        return "Heal";
+                    case "AttackBomb":
+                        return "Bomb";
+                    case "AttackAvoid":
+                        return "Avoid";
+                    case "AttackDeceive":
+                        return "Deceive";
+                    case "AttackFreeze":
+                        return "Freeze";
+                    case "HealBomb":
+                        if (!bm.GetTurnPlayer().Equals(this) && opponentHealth <= 2)
+                        {
+                            return "Bomb";
+                        }
+                        else return "Heal";
+                    case "HealAvoid":
+                    case "HealDeceive":
+                    case "HealFreeze":
+                        return "Heal";
+                    case "BombAvoid":
+                        if (bm.GetTurnPlayer().Equals(this) && GetHealth() <= 2)
+                        {
+                            return "Avoid";
+                        }
+                        else return "Bomb";
+                    case "BombDeceive":
+                    case "BombFreeze":
+                        return "Bomb";
+                    case "AvoidDeceive":
+                        if (Random.Range(0, 1) == 0) return "Deceive";
+                        else return "Avoid";
+                    case "AvoidFreeze":
+                        return "Avoid";
+                    case "DeceiveFreeze":
+                        return "Freeze";
+                }
+                break;
+            case 1: // 상대는 나를 천적으로 생각
+                switch (card1)
+                {
+                    case "AttackHeal":
+                        return "Heal";
+                    case "AttackBomb":
+                        return "Bomb";
+                    case "AttackAvoid":
+                        return "Avoid";
+                    case "AttackDeceive":
+                        return "Deceive";
+                    case "AttackFreeze":
+                        return "Freeze";
+                    case "HealBomb":
+                        if (!bm.GetTurnPlayer().Equals(this) && opponentHealth <= 2)
+                        {
+                            return "Bomb";
+                        }
+                        else return "Heal";
+                    case "HealAvoid":
+                        return "Avoid";
+                    case "HealDeceive":
+                        return "Heal";
+                    case "HealFreeze":
+                        if (GetHealth() <= 2) return "Heal";
+                        else return "Freeze";
+                    case "BombAvoid":
+                        return "Avoid";
+                    case "BombDeceive":
+                        return "Deceive";
+                    case "BombFreeze":
+                        return "Freeze";
+                    case "AvoidDeceive":
+                        return "Avoid";
+                    case "AvoidFreeze":
+                        if (opponentHealth <= 2) return "Avoid";
+                        else return "Freeze";
+                    case "DeceiveFreeze":
+                        return "Freeze";
+                }
+                break;
+            case 2: // 상대는 나를 목표로 생각
+                switch (card1)
+                {
+                    case "AttackHeal":
+                        return "Attack";
+                    case "AttackBomb":
+                        return "Bomb";
+                    case "AttackAvoid":
+                    case "AttackDeceive":
+                    case "AttackFreeze":
+                        return "Attack";
+                    case "HealBomb":
+                        return "Bomb";
+                    case "HealAvoid":
+                        return "Avoid";
+                    case "HealDeceive":
+                        return "Deceive";
+                    case "HealFreeze":
+                        return "Freeze";
+                    case "BombAvoid":
+                    case "BombDeceive":
+                    case "BombFreeze":
+                        return "Bomb";
+                    case "AvoidDeceive":
+                        if (Random.Range(0, 1) == 0) return "Avoid";
+                        else return "Deceive";
+                    case "AvoidFreeze":
+                        return "Freeze";
+                    case "DeceiveFreeze":
+                        if (Random.Range(0, 1) == 0) return "Freeze";
+                        else return "Deceive";
+                }
+                break;
+            case 3: // 상대는 나를 목표이자 천적으로 생각
+                switch (card1)
+                {
+                    case "AttackHeal":
+                        return "Attack";
+                    case "AttackBomb":
+                        return "Bomb";
+                    case "AttackAvoid":
+                        if (opponentHealth <= 2) return "Avoid";
+                        else return "Attack";
+                    case "AttackDeceive":
+                    case "AttackFreeze":
+                        return "Attack";
+                    case "HealBomb":
+                        return "Bomb";
+                    case "HealAvoid":
+                        return "Avoid";
+                    case "HealDeceive":
+                        return "Deceive";
+                    case "HealFreeze":
+                        return "Freeze";
+                    case "BombAvoid":
+                    case "BombDeceive":
+                    case "BombFreeze":
+                        return "Bomb";
+                    case "AvoidDeceive":
+                        if (Random.Range(0, 1) == 0) return "Avoid";
+                        else return "Deceive";
+                    case "AvoidFreeze":
+                        if (opponentHealth <= 2) return "Avoid";
+                        else return "Freeze";
+                    case "DeceiveFreeze":
+                        if (Random.Range(0, 1) == 0) return "Freeze";
+                        else return "Deceive";
+                }
+                break;
+        }
+        // 위의 경우에 해당되지 않는 경우가 존재할지 모르겠지만
+        return "Error!";
+    }
+
+    /// <summary>
+    /// 인공지능이 자신의 myCard를 상대에게 내는 행동에 대한 점수를 매기고, 그 점수만큼 낼 카드를 box에 넣는 함수입니다.
+    /// 행동에 대한 유불리 점수는 내장된 점수표를 따릅니다.
+    /// </summary>
+    /// <param name="myCard">자신이 낼 카드</param>
+    /// <param name="opponentCard">교환할 상대가 낼 것으로 예측한 카드</param>
+    /// <param name="hand">추정한 손패 목록 전체</param>
+    /// <param name="opponentPlayerIndex">교환할 상대의 인덱스</param>
+    /// <param name="playerClass">교환할 상대와의 목표 관계</param>
+    /// <param name="box">뽑기 상자</param>
+    private void AIScoreBehavior(string myCard, string opponentCard, List<string> hand, int opponentPlayerIndex, int playerClass, List<string> box)
+    {
+        CardDatabase cd = GameObject.Find("BattleManager").GetComponent<CardDatabase>();
+        if (cd == null)
+        {
+            Debug.Log("cd is null in AIScoreBehavior.");
+            return;
+        }
+        else if (!cd.VerifyCard(myCard) || !cd.VerifyCard(opponentCard))
+        {
+            Debug.Log("myCard or opponentCard is invalid.");
+            return;
+        }
+        else if (opponentPlayerIndex < 0 || opponentPlayerIndex >= 5)
+        {
+            Debug.Log("opponentPlayerIndex out of range [0, 4].");
+            return;
+        }
+        else if (hand.Count != 10)
+        {
+            Debug.Log("The number of cards in hand is not equal to 10.");
+            return;
+        }
+        else if (hand[GetPlayerIndex() * 2] != myCard && hand[GetPlayerIndex() * 2 + 1] != myCard)
+        {
+            Debug.Log("You don't have " + myCard + " card!");
+            return;
+        }
+        else if (hand[opponentPlayerIndex * 2] != opponentCard && hand[opponentPlayerIndex * 2 + 1] != opponentCard)
+        {
+            Debug.Log("You don't think your opponent has " + opponentCard + " card!");
+            return;
+        }
+        else if (playerClass < 0 || playerClass > 3)
+        {
+            Debug.Log("playerClass out of range [0, 3].");
+            return;
+        }
+
+        int score = 0;
+        string voidCard = myCard;   // 만약 상대가 속임을 쓴다고 예측했다면, 내가 원래 내려던 카드를 기억한다.
+        int opponentHealth = bm.GetPlayers()[opponentPlayerIndex].GetHealth();
+
+        // 내가 속임을 낼 경우의 점수는 상대가 내려고 하지 않았던 카드를 낼 때의 기준으로 계산된다.
+        if (myCard == "Deceive")
+        {
+            if (hand[opponentPlayerIndex * 2] == opponentCard)
+                opponentCard = hand[opponentPlayerIndex * 2 + 1];
+            else opponentCard = hand[opponentPlayerIndex * 2];
+        }
+        // 상대가 속임을 낼 경우의 점수는 내가 내려고 하지 않았던 카드를 낼 때의 기준으로 계산된다.
+        else if (opponentCard == "Deceive")
+        {
+            if (hand[GetPlayerIndex() * 2] == myCard)
+                myCard = hand[GetPlayerIndex() * 2 + 1];
+            else myCard = hand[GetPlayerIndex() * 2];
+        }
+        switch (playerClass)
+        {
+            case 0:
+                switch (myCard)
+                {
+                    case "Attack":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 1; break;
+                            case "Heal": score = 5; break;
+                            case "Bomb": score = 1; break;
+                            case "Deceive": score = 2; break;
+                            case "Avoid": score = 5; break;
+                            case "Freeze": score = 2; break;
+                        }
+                        break;
+                    case "Heal":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 10; break;
+                            case "Heal": score = 18; break;
+                            case "Bomb": score = 10; break;
+                            case "Deceive": score = 13; break;
+                            case "Avoid": score = 9; break;
+                            case "Freeze": score = 13; break;
+                        }
+                        if (opponentHealth <= 2) score += 6;
+                        break;
+                    case "Bomb":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 4; break;
+                            case "Heal": score = 8; break;
+                            case "Deceive": score = 5; break;
+                            case "Avoid": score = 5; break;
+                            case "Freeze": score = 5; break;
+                        }
+                        if (GetHealth() <= 2) score += 12;
+                        if (bm.GetTurnPlayer().Equals(this)) score += 2;
+                        break;
+                    case "Deceive":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 4; break;
+                            case "Heal": score = 8; break;
+                            case "Bomb": score = 4; break;
+                            case "Avoid": score = 5; break;
+                            case "Freeze": score = 5; break;
+                        }
+                        break;
+                    case "Avoid":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 10; break;
+                            case "Heal": score = 18; break;
+                            case "Bomb": score = 10; break;
+                            case "Deceive": score = 13; break;
+                            case "Freeze": score = 13; break;
+                        }
+                        if (opponentHealth <= 2) score += 4;
+                        break;
+                    case "Freeze":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 4; break;
+                            case "Heal": score = 8; break;
+                            case "Bomb": score = 4; break;
+                            case "Deceive": score = 5; break;
+                            case "Avoid": score = 5; break;
+                        }
+                        break;
+                }
+                break;
+            case 1:
+                switch (myCard)
+                {
+                    case "Attack":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 16; break;
+                            case "Heal": score = 20; break;
+                            case "Bomb": score = 16; break;
+                            case "Deceive": score = 17; break;
+                            case "Avoid": score = 16; break;
+                            case "Freeze": score = 17; break;
+                        }
+                        if (opponentHealth <= 2) score += 4;
+                        break;
+                    case "Heal":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 1; break;
+                            case "Heal": score = 5; break;
+                            case "Bomb": score = 1; break;
+                            case "Deceive": score = 2; break;
+                            case "Avoid": score = 5; break;
+                            case "Freeze": score = 2; break;
+                        }
+                        break;
+                    case "Bomb":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 25; break;
+                            case "Heal": score = 29; break;
+                            case "Deceive": score = 26; break;
+                            case "Avoid": score = 26; break;
+                            case "Freeze": score = 26; break;
+                        }
+                        if (GetHealth() <= 2) score += 10;
+                        if (bm.GetTurnPlayer().Equals(this)) score += 5;
+                        if (opponentHealth <= 2 && !bm.GetTurnPlayer().Equals(this)) score += 5;
+                        break;
+                    case "Deceive":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 9; break;
+                            case "Heal": score = 13; break;
+                            case "Bomb": score = 9; break;
+                            case "Avoid": score = 10; break;
+                            case "Freeze": score = 10; break;
+                        }
+                        break;
+                    case "Avoid":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 8; break;
+                            case "Heal": score = 8; break;
+                            case "Bomb": score = 7; break;
+                            case "Deceive": score = 8; break;
+                            case "Freeze": score = 8; break;
+                        }
+                        break;
+                    case "Freeze":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 9; break;
+                            case "Heal": score = 13; break;
+                            case "Bomb": score = 9; break;
+                            case "Deceive": score = 10; break;
+                            case "Avoid": score = 10; break;
+                        }
+                        break;
+                }
+                break;
+            case 2:
+                switch (myCard)
+                {
+                    case "Attack":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 1; break;
+                            case "Heal": score = 5; break;
+                            case "Bomb": score = 1; break;
+                            case "Deceive": score = 5; break;
+                            case "Avoid": score = 5; break;
+                            case "Freeze": score = 2; break;
+                        }
+                        break;
+                    case "Heal":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 9; break;
+                            case "Heal": score = 13; break;
+                            case "Bomb": score = 9; break;
+                            case "Deceive": score = 13; break;
+                            case "Avoid": score = 9; break;
+                            case "Freeze": score = 10; break;
+                        }
+                        if (opponentHealth <= 2) score += 6;
+                        break;
+                    case "Bomb":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 4; break;
+                            case "Heal": score = 8; break;
+                            case "Deceive": score = 8; break;
+                            case "Avoid": score = 5; break;
+                            case "Freeze": score = 5; break;
+                        }
+                        if (GetHealth() <= 2) score += 8;
+                        if (bm.GetTurnPlayer().Equals(this)) score += 2;
+                        break;
+                    case "Deceive":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 9; break;
+                            case "Heal": score = 13; break;
+                            case "Bomb": score = 9; break;
+                            case "Avoid": score = 10; break;
+                            case "Freeze": score = 10; break;
+                        }
+                        break;
+                    case "Avoid":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 12; break;
+                            case "Heal": score = 12; break;
+                            case "Bomb": score = 11; break;
+                            case "Deceive": score = 12; break;
+                            case "Freeze": score = 12; break;
+                        }
+                        if (opponentHealth <= 2) score += 6;
+                        if (GetHealth() <= 2) score += 3;
+                        break;
+                    case "Freeze":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 11; break;
+                            case "Heal": score = 15; break;
+                            case "Bomb": score = 11; break;
+                            case "Deceive": score = 15; break;
+                            case "Avoid": score = 11; break;
+                        }
+                        break;
+                }
+                break;
+            case 3:
+                switch (myCard)
+                {
+                    case "Attack":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 16; break;
+                            case "Heal": score = 20; break;
+                            case "Bomb": score = 16; break;
+                            case "Deceive": score = 20; break;
+                            case "Avoid": score = 16; break;
+                            case "Freeze": score = 17; break;
+                        }
+                        if (opponentHealth <= 2) score += 4;
+                        break;
+                    case "Heal":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 1; break;
+                            case "Heal": score = 5; break;
+                            case "Bomb": score = 1; break;
+                            case "Deceive": score = 5; break;
+                            case "Avoid": score = 5; break;
+                            case "Freeze": score = 2; break;
+                        }
+                        break;
+                    case "Bomb":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 25; break;
+                            case "Heal": score = 29; break;
+                            case "Deceive": score = 29; break;
+                            case "Avoid": score = 26; break;
+                            case "Freeze": score = 26; break;
+                        }
+                        if (GetHealth() <= 2) score += 5;
+                        if (bm.GetTurnPlayer().Equals(this)) score += 5;
+                        if (opponentHealth <= 2 && !bm.GetTurnPlayer().Equals(this)) score += 5;
+                        break;
+                    case "Deceive":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 9; break;
+                            case "Heal": score = 13; break;
+                            case "Bomb": score = 9; break;
+                            case "Avoid": score = 10; break;
+                            case "Freeze": score = 10; break;
+                        }
+                        break;
+                    case "Avoid":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 10; break;
+                            case "Heal": score = 10; break;
+                            case "Bomb": score = 9; break;
+                            case "Deceive": score = 10; break;
+                            case "Freeze": score = 10; break;
+                        }
+                        if (GetHealth() <= 2) score += 9;
+                        break;
+                    case "Freeze":
+                        switch (opponentCard)
+                        {
+                            case "Attack": score = 9; break;
+                            case "Heal": score = 13; break;
+                            case "Bomb": score = 9; break;
+                            case "Deceive": score = 13; break;
+                            case "Avoid": score = 9; break;
+                        }
+                        break;
+                }
+                break;
+        }
+
+        // 상대가 속임을 낼 것이라면, 뽑기에 넣기 전에 내가 원래 내려던 카드로 다시 바꿔준다.
+        if (opponentCard == "Deceive")
+        {
+            myCard = voidCard;
+        }
+        bm.RpcPrintLog(score + " lotteries say " + opponentPlayerIndex + myCard + ".");
+        for (int i = 0; i < score; i++)
+        {
+            box.Add(opponentPlayerIndex + myCard);
+        }
     }
 }
