@@ -13,7 +13,8 @@ public class Alert : MonoBehaviour {
     public Sprite myTurnSprite; // i == 0
     public Sprite exchangeSprite; // i == 1
     public Sprite disconnectSprite; // i == 2
-    public Sprite battleEndSprite; // i == 3
+    public Sprite battleWinSprite; // i == 3
+    public Sprite battleLoseSprite; // i == 4
 
     private void Awake()
     {
@@ -22,7 +23,7 @@ public class Alert : MonoBehaviour {
 
     public void CreateAlert(int i)
     {
-        if (i < 0 || i >= 4) return;
+        if (i < 0 || i >= 5) return;
         StartCoroutine(ShowAlert(i));
     }
 
@@ -41,7 +42,10 @@ public class Alert : MonoBehaviour {
                 image.sprite = disconnectSprite;
                 break;
             case 3:
-                image.sprite = battleEndSprite;
+                image.sprite = battleWinSprite;
+                break;
+            case 4:
+                image.sprite = battleLoseSprite;
                 break;
         }
         yield return new WaitForSeconds(1.5f);

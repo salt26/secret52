@@ -368,7 +368,7 @@ public class BattleManager : NetworkBehaviour
                 }
                 RpcPrintLog("Battle ends.");
                 */
-                StartCoroutine(ReturnToLobby(8f));
+                StartCoroutine(ReturnToLobby(10f));
                 turnStep = 8;
             }
             else

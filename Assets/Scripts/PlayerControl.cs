@@ -577,9 +577,14 @@ public class PlayerControl : NetworkBehaviour
                 }
             }
             StatusUI.SetText("대전 종료!\n" + s + "승리!");
-            if (!isAlerted3)
+            if (!isAlerted3 && bm.GetIsWin()[GetPlayerIndex()])
             {
                 Alert.alert.CreateAlert(3);
+                isAlerted3 = true;
+            }
+            else if (!isAlerted3 && !bm.GetIsWin()[GetPlayerIndex()])
+            {
+                Alert.alert.CreateAlert(4);
                 isAlerted3 = true;
             }
         }
@@ -1068,7 +1073,7 @@ public class PlayerControl : NetworkBehaviour
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?");
+            } while (handName[r] != "?" && handName[r] != "NoBomb");
             handName[r] = "Deceive";
         }
         if (handName.IndexOf("Freeze") == -1 && handName.IndexOf("?") != -1)
@@ -1076,7 +1081,7 @@ public class PlayerControl : NetworkBehaviour
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?");
+            } while (handName[r] != "?" && handName[r] != "NoBomb");
             handName[r] = "Freeze";
         }
         if (handName.IndexOf("Avoid") == -1 && handName.IndexOf("?") != -1)
@@ -1084,7 +1089,7 @@ public class PlayerControl : NetworkBehaviour
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?");
+            } while (handName[r] != "?" && handName[r] != "NoBomb");
             handName[r] = "Avoid";
         }
         if (handName.IndexOf("Heal") == -1 && handName.IndexOf("?") != -1)
@@ -1092,7 +1097,7 @@ public class PlayerControl : NetworkBehaviour
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?");
+            } while (handName[r] != "?" && handName[r] != "NoBomb");
             handName[r] = "Heal";
         }
         if (handName.IndexOf("Heal") == handName.LastIndexOf("Heal") && handName.IndexOf("?") != -1)
@@ -1100,12 +1105,12 @@ public class PlayerControl : NetworkBehaviour
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?");
+            } while (handName[r] != "?" && handName[r] != "NoBomb");
             handName[r] = "Heal";
         }
         for (int i = 0; i < 10; i++)
         {
-            if (handName[i] == "?") handName[i] = "Attack";
+            if (handName[i] == "?" || handName[r] == "NoBomb") handName[i] = "Attack";
         }
 
         /* TODO 임시 코드 */
@@ -1142,7 +1147,7 @@ public class PlayerControl : NetworkBehaviour
         }
         else if (!cd.VerifyCard(card1) || !cd.VerifyCard(card2))
         {
-            Debug.Log("card1 or card2 is invalid.");
+            Debug.Log("card1("+ card1 + ") or card2(" + card2 + ") is invalid.");
             return "Error!";
         }
 
