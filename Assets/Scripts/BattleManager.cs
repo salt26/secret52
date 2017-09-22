@@ -91,6 +91,23 @@ public class BattleManager : NetworkBehaviour
     IEnumerator StartGame()
     {
         yield return new WaitWhile(() => !IsPlayerReady());
+        /* AUTO 시 주석 해제
+        if (LobbyManager.s_Singleton.numPlayers == 1)
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                int j;
+                if ((j = playerReady.IndexOf(i)) != -1)
+                {
+                    players[i].GetComponent<PlayerControl>().enabled = false;
+                    foreach (Renderer r in players[i].GetComponentsInChildren<Renderer>()) r.enabled = false;
+                    foreach (Text t in players[i].GetComponentsInChildren<Text>()) t.enabled = false;
+                    bm.players[i] = null;
+                    playerReady[j] = -1;
+                }
+            }
+        }
+        */
 
         // add AI players.
         if (playerReady.IndexOf(0) == -1)

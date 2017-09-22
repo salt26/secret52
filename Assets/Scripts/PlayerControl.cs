@@ -737,7 +737,7 @@ public class PlayerControl : NetworkBehaviour
 
     IEnumerator AIExchangeDelay()
     {
-        yield return new WaitForSeconds(Random.Range(1.5f, 3f));
+        yield return new WaitForSeconds(Random.Range(1.5f, 3f)); /* AUTO 시 주석처리 */
         AIThinking(bm.GetTurnPlayer());
         bm.SetCardToPlay(playCardAI.GetCardCode(), GetPlayerIndex());
         playCardAI = null;
@@ -1110,7 +1110,7 @@ public class PlayerControl : NetworkBehaviour
         }
         for (int i = 0; i < 10; i++)
         {
-            if (handName[i] == "?" || handName[r] == "NoBomb") handName[i] = "Attack";
+            if (handName[i] == "?" || handName[i] == "NoBomb") handName[i] = "Attack";
         }
 
         /* TODO 임시 코드 */
