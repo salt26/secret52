@@ -1590,6 +1590,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Avoid": score = 5; break;
                             case "Freeze": score = 2; break;
                         }
+                        if (GetHealth() <= 2 && score > 3) score = 3;   // 천적 피하기
                         break;
                     case "Heal":
                         switch (opponentCard)
@@ -1601,6 +1602,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Avoid": score = 9; break;
                             case "Freeze": score = 10; break;
                         }
+                        if (GetHealth() <= 2) score -= 5;   // 천적 피하기
                         if (opponentHealth <= 2) score += 6;
                         break;
                     case "Bomb":
@@ -1614,6 +1616,7 @@ public class PlayerControl : NetworkBehaviour
                         }
                         if (GetHealth() <= 2) score += 8;
                         if (bm.GetTurnPlayer().Equals(this)) score += 2;
+                        if (GetHealth() <= 2 && bm.GetTurnPlayer().Equals(this)) score -= 10;    // 천적 피하기
                         break;
                     case "Deceive":
                         switch (opponentCard)
@@ -1646,6 +1649,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Deceive": score = 15; break;
                             case "Avoid": score = 11; break;
                         }
+                        if (GetHealth() <= 2) score -= 5;   // 천적 피하기
                         break;
                 }
                 break;
@@ -1663,6 +1667,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Freeze": score = 17; break;
                         }
                         if (opponentHealth <= 2) score += 4;
+                        if (GetHealth() <= 2) score -= 10;  // 천적 피하기
                         break;
                     case "Heal":
                         switch (opponentCard)
@@ -1674,6 +1679,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Avoid": score = 5; break;
                             case "Freeze": score = 2; break;
                         }
+                        if (GetHealth() <= 2 && score > 3) score = 3;   // 천적 피하기
                         break;
                     case "Bomb":
                         switch (opponentCard)
@@ -1687,6 +1693,7 @@ public class PlayerControl : NetworkBehaviour
                         if (GetHealth() <= 2) score += 5;
                         if (bm.GetTurnPlayer().Equals(this)) score += 5;
                         if (opponentHealth <= 2 && !bm.GetTurnPlayer().Equals(this)) score += 5;
+                        if (GetHealth() <= 2 && bm.GetTurnPlayer().Equals(this)) score -= 20;   // 천적 피하기
                         break;
                     case "Deceive":
                         switch (opponentCard)
@@ -1718,10 +1725,14 @@ public class PlayerControl : NetworkBehaviour
                             case "Deceive": score = 13; break;
                             case "Avoid": score = 9; break;
                         }
+                        if (GetHealth() <= 2) score -= 5;   // 천적 피하기
                         break;
                 }
                 break;
         }
+        if (score < 1) score = 1;
+
+        score = score * score;  // 유리한 행동을 할 확률과 불리한 행동을 할 확률의 차이를 크게 벌린다.
 
         // 상대가 속임을 낼 것이라면, 뽑기에 넣기 전에 내가 원래 내려던 카드로 다시 바꿔준다.
         if (opponentCard == "Deceive")
