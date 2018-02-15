@@ -56,6 +56,7 @@ public class BattleManager : NetworkBehaviour
 
     private List<int> playerReady = new List<int>();
 
+    [SerializeField] private GameObject loadingPanel;
     [SerializeField] private GameObject exchangeLog;
     private List<GameObject> exchanges = new List<GameObject>();
 
@@ -730,6 +731,7 @@ public class BattleManager : NetworkBehaviour
     IEnumerator ReturnToLobby(float timing)
     {
         yield return new WaitForSeconds(timing);
+        loadingPanel.SetActive(true);
         LobbyManager.s_Singleton.ServerReturnToLobby();
     }
 }

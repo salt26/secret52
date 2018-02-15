@@ -39,6 +39,7 @@ namespace Prototype.NetworkLobby
             */
             lobbyManager.minPlayers = 1;
             lobbyManager.maxPlayers = 1;
+            lobbyManager.prematchCountdown = 3f;
             lobbyManager.networkAddress = "localhost"; //ipInput.text;
             lobbyManager.StartHost();
         }
@@ -57,6 +58,7 @@ namespace Prototype.NetworkLobby
 
             lobbyManager.minPlayers = 2;
             lobbyManager.maxPlayers = 5;
+            lobbyManager.prematchCountdown = 5f;
             lobbyManager.networkAddress = "uriel.upnl.org"; //ipInput.text;
             lobbyManager.StartClient();
 
@@ -80,6 +82,7 @@ namespace Prototype.NetworkLobby
 
             lobbyManager.minPlayers = 2;
             lobbyManager.maxPlayers = 5;
+            lobbyManager.prematchCountdown = 5f;
             lobbyManager.networkAddress = "localhost"; //ipInput.text;
             lobbyManager.StartClient();
 
@@ -103,6 +106,7 @@ namespace Prototype.NetworkLobby
 
             lobbyManager.minPlayers = 2;
             lobbyManager.maxPlayers = 5;
+            lobbyManager.prematchCountdown = 5f;
             lobbyManager.networkAddress = "localhost"; //ipInput.text;
             lobbyManager.StartServer();
 

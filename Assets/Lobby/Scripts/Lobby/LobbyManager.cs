@@ -359,6 +359,7 @@ namespace Prototype.NetworkLobby
         {
             float remainingTime = prematchCountdown;
             int floorTime = Mathf.FloorToInt(remainingTime);
+            backButton.gameObject.SetActive(false);
 
             while (remainingTime > 0)
             {
@@ -412,6 +413,7 @@ namespace Prototype.NetworkLobby
 
             minPlayers = 2;
             maxPlayers = 5;
+            prematchCountdown = 5f;
             networkAddress = "localhost"; //ipInput.text;
             StartServer();
 

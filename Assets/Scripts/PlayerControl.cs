@@ -45,7 +45,8 @@ public class PlayerControl : NetworkBehaviour
     private bool isAlerted3;
 
     private bool isStart;
-    private bool isThinking;    // 인공지능의 생각 전 딜레이 동안 True가 됨
+    private bool isThinking;    // 인공지능의 생각 전 딜레이 동안 true가 됨
+    private bool isCardDragging;  // 큰 카드를 드래그하는 동안 true가 됨
 
     void Awake () {
         // bm은 Awake에서 아직 로딩되지 않았을 수 있음. 즉, BattleManager.Awake가 PlayerControl.Awake보다 늦게 실행될 수 있음. 
@@ -62,6 +63,7 @@ public class PlayerControl : NetworkBehaviour
         isAlerted3 = false;
         isStart = false;
         isThinking = false;
+        isCardDragging = false;
         if (transform.position.z < 1f)
         {
             playerNum = 1;
@@ -149,7 +151,7 @@ public class PlayerControl : NetworkBehaviour
         {
             StatusUpdate();
         }
-        if (isLocalPlayer && Input.GetMouseButtonDown(0))
+        if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging)
         {
             /*
             if (bm.GetObjectPlayer() != null)
@@ -415,6 +417,11 @@ public class PlayerControl : NetworkBehaviour
     public void SetAI(bool AI)
     {
         isAI = AI;
+    }
+
+    public void SetCardDragging(bool drag)
+    {
+        isCardDragging = drag;
     }
 
     public int GetHealth()
@@ -696,7 +703,7 @@ public class PlayerControl : NetworkBehaviour
     {
         //Log("FreezeAnimation");
         Ice.transform.localScale = new Vector3(0.25f, 0.25f, 0.25f);
-        Ice.GetComponent<SpriteRenderer>().color = new Color(1f, 1f, 1f, 0.6f);
+        Ice.GetComponent<SpriteRenderer>().color = new Color(1f, 1f, 1f, 0.75f);
         Ice.GetComponent<SpriteRenderer>().sprite = Resources.Load("이펙트/대전화면_빙결/얼음0", typeof(Sprite)) as Sprite;
         yield return new WaitForSeconds(4f / 3f);
         Ice.GetComponent<SpriteRenderer>().sprite = Resources.Load("이펙트/대전화면_빙결/얼음2", typeof(Sprite)) as Sprite;
@@ -706,7 +713,7 @@ public class PlayerControl : NetworkBehaviour
         float t = Time.time;
         while (Time.time - t < (90f / 60f))
         {
-            Ice.GetComponent<SpriteRenderer>().color = Color.Lerp(new Color(1f, 1f, 1f, 0.6f), new Color(1f, 1f, 1f, 0f), (Time.time - t) / (90f / 60f));
+            Ice.GetComponent<SpriteRenderer>().color = Color.Lerp(new Color(1f, 1f, 1f, 0.75f), new Color(1f, 1f, 1f, 0f), (Time.time - t) / (90f / 60f));
             yield return null;
         }
         Ice.GetComponent<SpriteRenderer>().color = new Color(1f, 1f, 1f, 0f);
@@ -1442,10 +1449,10 @@ public class PlayerControl : NetworkBehaviour
                         switch (opponentCard)
                         {
                             case "Attack": score = 1; break;
-                            case "Heal": score = 5; break;
+                            case "Heal": score = 3; break;
                             case "Bomb": score = 1; break;
                             case "Deceive": score = 2; break;
-                            case "Avoid": score = 5; break;
+                            case "Avoid": score = 3; break;
                             case "Freeze": score = 2; break;
                         }
                         break;
@@ -1472,6 +1479,7 @@ public class PlayerControl : NetworkBehaviour
                         }
                         if (GetHealth() <= 2) score += 12;
                         if (bm.GetTurnPlayer().Equals(this)) score += 2;
+                        if (!bm.GetTurnPlayer().Equals(this) && opponentHealth <= 2) score /= 2;    // 상대가 죽으면 안됨
                         break;
                     case "Deceive":
                         switch (opponentCard)
@@ -1482,6 +1490,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Avoid": score = 5; break;
                             case "Freeze": score = 5; break;
                         }
+                        if (GetHealth() <= 2) score /= 2;   // 아군을 속이는 것은 불리한 행동
                         break;
                     case "Avoid":
                         switch (opponentCard)
@@ -1519,16 +1528,16 @@ public class PlayerControl : NetworkBehaviour
                             case "Avoid": score = 16; break;
                             case "Freeze": score = 17; break;
                         }
-                        if (opponentHealth <= 2) score += 4;
+                        if (opponentHealth <= 2) score += 7;
                         break;
                     case "Heal":
                         switch (opponentCard)
                         {
                             case "Attack": score = 1; break;
-                            case "Heal": score = 5; break;
+                            case "Heal": score = 3; break;
                             case "Bomb": score = 1; break;
                             case "Deceive": score = 2; break;
-                            case "Avoid": score = 5; break;
+                            case "Avoid": score = 3; break;
                             case "Freeze": score = 2; break;
                         }
                         break;
@@ -1543,17 +1552,19 @@ public class PlayerControl : NetworkBehaviour
                         }
                         if (GetHealth() <= 2) score += 10;
                         if (bm.GetTurnPlayer().Equals(this)) score += 5;
+                        if (GetHealth() <= 2 && bm.GetTurnPlayer().Equals(this)) score += 5;    // 유리한 교환
                         if (opponentHealth <= 2 && !bm.GetTurnPlayer().Equals(this)) score += 5;
                         break;
                     case "Deceive":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 9; break;
-                            case "Heal": score = 13; break;
-                            case "Bomb": score = 9; break;
-                            case "Avoid": score = 10; break;
-                            case "Freeze": score = 10; break;
+                            case "Attack": score = 4; break;
+                            case "Heal": score = 8; break;
+                            case "Bomb": score = 4; break;
+                            case "Avoid": score = 5; break;
+                            case "Freeze": score = 5; break;
                         }
+                        if (GetHealth() <= 2) score /= 2;   // 아군을 속이는 것은 불리한 행동
                         break;
                     case "Avoid":
                         switch (opponentCard)
@@ -1584,13 +1595,12 @@ public class PlayerControl : NetworkBehaviour
                         switch (opponentCard)
                         {
                             case "Attack": score = 1; break;
-                            case "Heal": score = 5; break;
+                            case "Heal": score = 3; break;
                             case "Bomb": score = 1; break;
-                            case "Deceive": score = 5; break;
-                            case "Avoid": score = 5; break;
+                            case "Deceive": score = 3; break;
+                            case "Avoid": score = 3; break;
                             case "Freeze": score = 2; break;
                         }
-                        if (GetHealth() <= 2 && score > 3) score = 3;   // 천적 피하기
                         break;
                     case "Heal":
                         switch (opponentCard)
@@ -1617,6 +1627,7 @@ public class PlayerControl : NetworkBehaviour
                         if (GetHealth() <= 2) score += 8;
                         if (bm.GetTurnPlayer().Equals(this)) score += 2;
                         if (GetHealth() <= 2 && bm.GetTurnPlayer().Equals(this)) score -= 10;    // 천적 피하기
+                        if (!bm.GetTurnPlayer().Equals(this) && opponentHealth <= 2) score /= 2;    // 상대가 죽으면 안됨
                         break;
                     case "Deceive":
                         switch (opponentCard)
@@ -1659,24 +1670,24 @@ public class PlayerControl : NetworkBehaviour
                     case "Attack":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 16; break;
-                            case "Heal": score = 20; break;
-                            case "Bomb": score = 16; break;
-                            case "Deceive": score = 20; break;
-                            case "Avoid": score = 16; break;
-                            case "Freeze": score = 17; break;
+                            case "Attack": score = 14; break;
+                            case "Heal": score = 18; break;
+                            case "Bomb": score = 14; break;
+                            case "Deceive": score = 18; break;
+                            case "Avoid": score = 14; break;
+                            case "Freeze": score = 15; break;
                         }
-                        if (opponentHealth <= 2) score += 4;
+                        if (opponentHealth <= 2) score += 7;
                         if (GetHealth() <= 2) score -= 10;  // 천적 피하기
                         break;
                     case "Heal":
                         switch (opponentCard)
                         {
                             case "Attack": score = 1; break;
-                            case "Heal": score = 5; break;
+                            case "Heal": score = 3; break;
                             case "Bomb": score = 1; break;
-                            case "Deceive": score = 5; break;
-                            case "Avoid": score = 5; break;
+                            case "Deceive": score = 3; break;
+                            case "Avoid": score = 3; break;
                             case "Freeze": score = 2; break;
                         }
                         if (GetHealth() <= 2 && score > 3) score = 3;   // 천적 피하기

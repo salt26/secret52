@@ -73,6 +73,7 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void OnBeginDrag(PointerEventData eventData)
     {
         cardx.x = transform.position.x;
+        localPlayer.SetCardDragging(true);
     }
 
     public void OnDrag(PointerEventData eventData)
@@ -93,7 +94,8 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        if (this.transform.position.y >= Screen.height * 10 / 16)
+        localPlayer.SetCardDragging(false);
+        if (this.transform.position.y >= Screen.height * 8 / 16)
         {
             if (CompareTag("Left"))
             {
