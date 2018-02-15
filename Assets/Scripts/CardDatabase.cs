@@ -14,6 +14,7 @@ public class CardDatabase : MonoBehaviour {
         bm = gameObject.GetComponent<BattleManager>();
         CardInfo ci;
 
+        /*
         // 공격 카드
         ci = new CardInfo("Attack", "공격", "이 카드를 받을 때 피해를 1 받습니다.");
         cardInfo.Add(ci);
@@ -37,8 +38,50 @@ public class CardDatabase : MonoBehaviour {
         // 빙결 카드
         ci = new CardInfo("Freeze", "빙결", "이 카드를 받을 때 다음 한 번의 내 턴이 교환 없이 끝납니다. 이 카드의 효과를 받은 사실은 다음 내 턴이 시작될 때 모두에게 공개됩니다.");
         cardInfo.Add(ci);
+        */
+
+        // 불 카드
+        ci = new CardInfo("Fire", "불", "받을 때 자신이 불의 마법사이면 피해를 2 받고, 아니면 상대의 공격력만큼 피해를 받습니다.");
+        cardInfo.Add(ci);
+
+        // 물 카드
+        ci = new CardInfo("Water", "물", "받을 때 자신이 물의 마법사이면 피해를 2 받고, 아니면 상대의 공격력만큼 피해를 받습니다.");
+        cardInfo.Add(ci);
+
+        // 전기 카드
+        ci = new CardInfo("Electricity", "전기", "받을 때 자신이 전기의 마법사이면 피해를 2 받고, 아니면 상대의 공격력만큼 피해를 받습니다.");
+        cardInfo.Add(ci);
+
+        // 바람 카드
+        ci = new CardInfo("Wind", "바람", "받을 때 자신이 바람의 마법사이면 피해를 2 받고, 아니면 상대의 공격력만큼 피해를 받습니다.");
+        cardInfo.Add(ci);
+
+        // 독 카드
+        ci = new CardInfo("Poison", "독", "받을 때 자신이 독의 마법사이면 피해를 2 받고, 아니면 상대의 공격력만큼 피해를 받습니다.");
+        cardInfo.Add(ci);
+
+        // 생명 카드
+        ci = new CardInfo("Life", "생명", "낼 때 체력을 5 회복합니다. 받을 때 체력을 5 회복합니다. 최대 체력은 52입니다.");
+        cardInfo.Add(ci);
+
+        // 어둠 카드
+        ci = new CardInfo("Dark", "어둠", "낼 때 상대에게서 받는 카드의 받을 때 효과를 무시합니다.");
+        cardInfo.Add(ci);
+
+        // 빛 카드
+        ci = new CardInfo("Light", "빛", "낼 때 권력을 1 얻고 상대 마법사의 속성을 확인합니다. 받을 때 권력을 1 얻습니다.");
+        cardInfo.Add(ci);
+
+        // 시간 카드
+        ci = new CardInfo("Time", "시간", "낼 때 상대가 내려고 했던 카드를 내지 못하게 하는 대신 들고 있던 카드를 내도록 하여 자신이 받습니다.");
+        cardInfo.Add(ci);
+
+        // 타락 카드
+        ci = new CardInfo("Corruption", "타락", "들고 있는 동안 자신의 턴이 끝나면 공격력을 1 얻고 정신력을 1 잃습니다. 최소 정신력은 1입니다.");
+        cardInfo.Add(ci);
+
     }
-    
+
 
     /// <summary>
     /// 인자로 주어진 카드의 영어 이름이 데이터베이스에 존재하는지 확인하는 함수입니다.

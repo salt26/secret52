@@ -144,6 +144,7 @@ public class Exchange : NetworkBehaviour {
 
     private void ProcessExchange()
     {
+        /*
         // 속임 효과 처리
         if (turnPlayerCard.GetCardName() == "Deceive")
         {
@@ -197,6 +198,163 @@ public class Exchange : NetworkBehaviour {
         }
 
         // 폭탄은 낼 때, 받을 때 효과가 없습니다.
+        */
+
+        // 시간 효과 처리
+        if (turnPlayerCard.GetCardName() == "Time")
+        {
+            objectPlayerVoidCard = objectPlayerCard;
+            objectPlayerCard = AnotherCardInHand(objectPlayerCard, objectPlayerHand);
+        }
+        else if (objectPlayerCard.GetCardName() == "Time")
+        {
+            turnPlayerVoidCard = turnPlayerCard;
+            turnPlayerCard = AnotherCardInHand(turnPlayerCard, turnPlayerHand);
+        }
+
+        // 생명 낼 때 효과 처리
+        if (turnPlayerCard.GetCardName() == "Life")
+        {
+            turnPlayer.Restored();
+        }
+        if (objectPlayerCard.GetCardName() == "Life")
+        {
+            objectPlayer.Restored();
+        }
+
+        // 빛 낼 때 효과 처리
+        if (turnPlayerCard.GetCardName() == "Light")
+        {
+            turnPlayer.Lighted();
+            // TODO 오브젝트 플레이어의 속성을 턴 플레이어에게 공개
+        }
+        if (objectPlayerCard.GetCardName() == "Light")
+        {
+            objectPlayer.Lighted();
+            // TODO 턴 플레이어의 속성을 오브젝트 플레이어에게 공개
+        }
+
+        // 어둠 효과 처리
+        if (turnPlayerCard.GetCardName() == "Dark")
+        {
+            return;
+        }
+        if (objectPlayerCard.GetCardName() == "Dark")
+        {
+            return;
+        }
+
+        // 생명 받을 때 효과 처리
+        if (turnPlayerCard.GetCardName() == "Life")
+        {
+            objectPlayer.Restored();
+        }
+        if (objectPlayerCard.GetCardName() == "Life")
+        {
+            turnPlayer.Restored();
+        }
+
+        // 빛 받을 때 효과 처리
+        if (turnPlayerCard.GetCardName() == "Light")
+        {
+            objectPlayer.Lighted();
+        }
+        if (objectPlayerCard.GetCardName() == "Light")
+        {
+            turnPlayer.Lighted();
+        }
+
+        // 불 효과 처리
+        if (turnPlayerCard.GetCardName() == "Fire")
+        {
+            // 상대가 불의 마법사이면 피해 감소
+            if (objectPlayer.GetPlayerElement() == 0)
+                objectPlayer.Damaged(2);
+            else
+                objectPlayer.Damaged(turnPlayer.GetStatAttack());
+        }
+        if (objectPlayerCard.GetCardName() == "Fire")
+        {
+            // 상대가 불의 마법사이면 피해 감소
+            if (turnPlayer.GetPlayerElement() == 0)
+                turnPlayer.Damaged(2);
+            else
+                turnPlayer.Damaged(objectPlayer.GetStatAttack());
+        }
+
+        // 물 효과 처리
+        if (turnPlayerCard.GetCardName() == "Water")
+        {
+            // 상대가 물의 마법사이면 피해 감소
+            if (objectPlayer.GetPlayerElement() == 1)
+                objectPlayer.Damaged(2);
+            else
+                objectPlayer.Damaged(turnPlayer.GetStatAttack());
+        }
+        if (objectPlayerCard.GetCardName() == "Water")
+        {
+            // 상대가 물의 마법사이면 피해 감소
+            if (turnPlayer.GetPlayerElement() == 1)
+                turnPlayer.Damaged(2);
+            else
+                turnPlayer.Damaged(objectPlayer.GetStatAttack());
+        }
+
+        // 전기 효과 처리
+        if (turnPlayerCard.GetCardName() == "Electricity")
+        {
+            // 상대가 전기의 마법사이면 피해 감소
+            if (objectPlayer.GetPlayerElement() == 2)
+                objectPlayer.Damaged(2);
+            else
+                objectPlayer.Damaged(turnPlayer.GetStatAttack());
+        }
+        if (objectPlayerCard.GetCardName() == "Electricity")
+        {
+            // 상대가 전기의 마법사이면 피해 감소
+            if (turnPlayer.GetPlayerElement() == 2)
+                turnPlayer.Damaged(2);
+            else
+                turnPlayer.Damaged(objectPlayer.GetStatAttack());
+        }
+
+        // 바람 효과 처리
+        if (turnPlayerCard.GetCardName() == "Wind")
+        {
+            // 상대가 바람의 마법사이면 피해 감소
+            if (objectPlayer.GetPlayerElement() == 3)
+                objectPlayer.Damaged(2);
+            else
+                objectPlayer.Damaged(turnPlayer.GetStatAttack());
+        }
+        if (objectPlayerCard.GetCardName() == "Wind")
+        {
+            // 상대가 바람의 마법사이면 피해 감소
+            if (turnPlayer.GetPlayerElement() == 3)
+                turnPlayer.Damaged(2);
+            else
+                turnPlayer.Damaged(objectPlayer.GetStatAttack());
+        }
+
+        // 독 효과 처리
+        if (turnPlayerCard.GetCardName() == "Poison")
+        {
+            // 상대가 독의 마법사이면 피해 감소
+            if (objectPlayer.GetPlayerElement() == 4)
+                objectPlayer.Damaged(2);
+            else
+                objectPlayer.Damaged(turnPlayer.GetStatAttack());
+        }
+        if (objectPlayerCard.GetCardName() == "Poison")
+        {
+            // 상대가 독의 마법사이면 피해 감소
+            if (turnPlayer.GetPlayerElement() == 4)
+                turnPlayer.Damaged(2);
+            else
+                turnPlayer.Damaged(objectPlayer.GetStatAttack());
+        }
+
+        // 타락은 낼 때, 받을 때 효과가 없습니다.
     }
 
     /// <summary>

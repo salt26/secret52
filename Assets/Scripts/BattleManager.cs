@@ -21,8 +21,19 @@ public class BattleManager : NetworkBehaviour
             null, null, null, null, null
         };
     private SyncListInt playerPermutation = new SyncListInt();
-    // playerPermutation은 각 PlayerControl의 인덱스 값(int)을 갖는 배열입니다.
-    // players[playerPermutation[0]]의 목표는 players[playerPermutation[1]] 또는 players[playerPermutation[2]]를 잡는 것입니다.
+    // playerPermutation은 각 플레이어에게 무작위로 속성을 하나씩 부여하기 위해 사용됩니다.
+    // 각 PlayerControl의 인덱스 값(int)을 갖는 배열입니다.
+    // players[playerPermutation[0]]의 속성은 불(0번) 속성입니다.
+    // players[playerPermutation[1]]의 속성은 물(1번) 속성입니다.
+    // players[playerPermutation[2]]의 속성은 전기(2번) 속성입니다.
+    // players[playerPermutation[3]]의 속성은 바람(3번) 속성입니다.
+    // players[playerPermutation[4]]의 속성은 독(4번) 속성입니다.
+
+    private SyncListInt elementPermutation = new SyncListInt();
+    // elementPermutation은 각 속성에게 무작위로 목표 속성을 두 개씩 부여하기 위해 사용됩니다.
+    // 속성 값(int)을 갖는 배열입니다.
+    // 이것의 인덱스는 목표 그래프에서 몇 번째 꼭지점인지를 나타냅니다.
+    // players[playerPermutation[elementPermutation[0]]]의 목표는 players[playerPermutation[elementPermutation[1]]] 또는 players[playerPermutation[elementPermutation[2]]]를 잡는 것입니다.
     // 1의 목표는 2 또는 4를 잡는 것입니다. (반복은 생략)
     // 2의 목표는 3 또는 1을 잡는 것입니다.
     // 3의 목표는 4 또는 0을 잡는 것입니다.
@@ -165,8 +176,17 @@ public class BattleManager : NetworkBehaviour
         List<int> temp = RandomListGenerator(5);
         for (int i = 0; i < 5; i++)
         {
-            isWin.Add(false);
             playerPermutation.Add(temp[i]);
+            // players[playerPermutation[n]]으로 n번 속성을 갖는 플레이어를 참조할 수 있다.
+            // players[n].GetPlayerElement()로 n번째 플레이어의 속성을 참조할 수 있다.
+        }
+
+        temp = RandomListGenerator(5);
+        for (int i = 0; i < 5; i++)
+        {
+            RpcPrintLog("Player" + i + "'s element is " + GetPlayerElement(i));
+            isWin.Add(false);
+            elementPermutation.Add(temp[i]);
         }
 
         for (int i = 0; i < 10; i++)
@@ -323,10 +343,10 @@ public class BattleManager : NetworkBehaviour
         else if (turnStep == 6)
         {
             List<Card> hand = GetPlayerHand(players[turnPlayer]);
-            // 턴을 진행한 플레이어가 폭탄 카드를 들고 있으면 펑!
-            if (hand[0].GetCardName() == "Bomb" || hand[1].GetCardName() == "Bomb")
+            // 턴을 진행한 플레이어가 타락 카드를 들고 있으면 타락한다!
+            if (hand[0].GetCardName() == "Corruption" || hand[1].GetCardName() == "Corruption")
             {
-                players[turnPlayer].Damaged();
+                players[turnPlayer].Corrupted(); // TODO
             }
 
             turnStep = 7;
@@ -631,32 +651,32 @@ public class BattleManager : NetworkBehaviour
     /// <returns></returns>
     public List<int> GetTarget(int playerIndex)
     {
-        if (playerIndex < 0 || playerIndex >= 5 || playerPermutation.Count != 5) return null;
+        if (playerIndex < 0 || playerIndex >= 5 || playerPermutation.Count != 5 || elementPermutation.Count != 5) return null;
 
         List<int> t = new List<int>();
-        int i = playerPermutation.IndexOf(playerIndex);
+        int i = elementPermutation.IndexOf(GetPlayerElement(playerIndex));
 
         switch (i)
         {
             case 0:
-                t.Add(playerPermutation[1]);
-                t.Add(playerPermutation[2]);
+                t.Add(playerPermutation[elementPermutation[1]]);
+                t.Add(playerPermutation[elementPermutation[2]]);
                 break;
             case 1:
-                t.Add(playerPermutation[2]);
-                t.Add(playerPermutation[4]);
+                t.Add(playerPermutation[elementPermutation[2]]);
+                t.Add(playerPermutation[elementPermutation[4]]);
                 break;
             case 2:
-                t.Add(playerPermutation[3]);
-                t.Add(playerPermutation[1]);
+                t.Add(playerPermutation[elementPermutation[3]]);
+                t.Add(playerPermutation[elementPermutation[1]]);
                 break;
             case 3:
-                t.Add(playerPermutation[4]);
-                t.Add(playerPermutation[0]);
+                t.Add(playerPermutation[elementPermutation[4]]);
+                t.Add(playerPermutation[elementPermutation[0]]);
                 break;
             case 4:
-                t.Add(playerPermutation[0]);
-                t.Add(playerPermutation[3]);
+                t.Add(playerPermutation[elementPermutation[0]]);
+                t.Add(playerPermutation[elementPermutation[3]]);
                 break;
         }
         return t;
@@ -666,13 +686,18 @@ public class BattleManager : NetworkBehaviour
     {
         return players;
     }
+
+    public int GetPlayerElement(int playerIndex)
+    {
+        return playerPermutation.IndexOf(playerIndex);
+    }
     
     // TODO 임시 코드
     [ClientRpc]
     public void RpcPrintLog(string msg)
     {
         //ConsoleLogUI.AddText(msg);
-        //Debug.Log(msg);
+        Debug.Log(msg);
     }
 
     [ClientRpc]

@@ -8,17 +8,20 @@ using Prototype.NetworkLobby;
 public class PlayerControl : NetworkBehaviour
 {
 
-    [SyncVar] private int currentHealth;     // 현재 남은 체력(실시간으로 변화, 외부 열람 불가)
-    [SerializeField] [SyncVar] private int maxHealth = 6;     // 최대 체력(초기 체력)
-    [SyncVar] private GameObject character;  // 캐릭터 모델
-    [SyncVar] private bool isDead = false;   // 사망 여부(true이면 사망)
+    [SyncVar] private int currentHealth;    // 현재 남은 체력(실시간으로 변화, 외부 열람 불가)
+    [SerializeField] [SyncVar] private int maxHealth = 52;      // 최대 체력(초기 체력)
+    [SyncVar] private GameObject character; // 캐릭터 모델
+    [SyncVar] private bool isDead = false;  // 사망 여부(true이면 사망)
     [SyncVar] public string playerName;     // 플레이어 이름
     [SyncVar] public int playerNum;         // 대전에서 부여된 플레이어 번호 (1 ~ 5)
     [SyncVar] public Color color = Color.white;
 
-
-    [SyncVar] private int displayedHealth;                    // 현재 남은 체력(턴이 끝날 때만 변화, 외부 열람 가능)
-    [SyncVar] private bool isFreezed = false;                 // 빙결 여부(true이면 다음 한 번의 내 턴에 교환 불가)
+    [SyncVar] private int displayedHealth;                      // 현재 남은 체력(턴이 끝날 때만 변화, 외부 열람 가능)
+    [SerializeField] [SyncVar] private int statAttack = 4;      // 현재 공격력
+    [SerializeField] [SyncVar] private int statAuthority = 1;   // 현재 권력
+    [SerializeField] [SyncVar] private int statMentality = 6;   // 현재 정신력
+    [SerializeField] [SyncVar] private int experience = 0;      // 현재 남은 경험치
+    [SyncVar] private bool isFreezed = false;                   // 빙결 여부(true이면 다음 한 번의 내 턴에 교환 불가)
 
     private bool isAI = false;                      // 인공지능 플레이어 여부(true이면 인공지능, false이면 사람)
     private bool hasDecidedObjectPlayer = false;    // 내 턴에 교환 상대를 선택했는지 여부
@@ -187,25 +190,25 @@ public class PlayerControl : NetworkBehaviour
     }
 
 
-    public void Damaged()
+    public void Damaged(int amount)
     {
         if (!isServer) return;
-        if (currentHealth > 0)
+        if (amount > 0 && currentHealth > 0)
         {
-            currentHealth -= 1;
+            currentHealth -= amount;
         }
     }
 
     public void Restored()
     {
         if (!isServer) return;
-        if (currentHealth > 0 && currentHealth <= 5)
+        if (currentHealth > 0 && currentHealth <= 47)
         {
-            currentHealth += 1;
+            currentHealth += 5;
         }
-        else if (currentHealth <= 6)
+        else if (currentHealth <= 48)
         {
-            currentHealth = 6;
+            currentHealth = 52;
         }
     }
 
@@ -226,6 +229,20 @@ public class PlayerControl : NetworkBehaviour
         {
             isFreezed = false;
         }
+    }
+
+    public void Lighted()
+    {
+        if (!isServer) return;
+        statAuthority++;
+    }
+
+    public void Corrupted()
+    {
+        if (!isServer) return;
+        statAttack++;
+        if (statMentality > 1) statMentality--;
+        else statMentality = 1;
     }
 
     public void UpdateHealth()
@@ -414,6 +431,16 @@ public class PlayerControl : NetworkBehaviour
         return playerNum;
     }
 
+    /// <summary>
+    /// 대전에서 부여된 플레이어 속성을 반환합니다.(0: 불, 1: 물, 2: 전기, 3: 바람, 4: 독)
+    /// bm이 null이면 -1을 반환합니다.
+    /// </summary>
+    public int GetPlayerElement()
+    {
+        if (bm == null) return -1;
+        return bm.GetPlayerElement(GetPlayerNum() - 1);
+    }
+
     public void SetAI(bool AI)
     {
         isAI = AI;
@@ -427,6 +454,26 @@ public class PlayerControl : NetworkBehaviour
     public int GetHealth()
     {
         return displayedHealth;
+    }
+
+    public int GetStatAttack()
+    {
+        return statAttack;
+    }
+
+    public int GetStatAuthority()
+    {
+        return statAuthority;
+    }
+
+    public int GetStatMentality()
+    {
+        return statMentality;
+    }
+
+    public int GetExperience()
+    {
+        return experience;
     }
 
     public bool HasFreezed()
@@ -497,6 +544,9 @@ public class PlayerControl : NetworkBehaviour
             }
             yield return null;
         } while (!b);
+
+        // TODO 만약 상대 플레이어의 속성을 모르는 상태이면 그 상대가 목표임을 공개하면 안 된다.
+
         //Log(bm.GetPlayers()[t[0]].GetName() + " is my objective.");
         bm.GetPlayers()[t[0]].SetHighlight(true);
         //Log(bm.GetPlayers()[t[1]].GetName() + " is my objective, too.");
@@ -505,7 +555,7 @@ public class PlayerControl : NetworkBehaviour
     
     private void Log(string msg)
     {
-        //Debug.Log(msg);
+        Debug.Log(msg);
         //ConsoleLogUI.AddText(msg);
     }
 
