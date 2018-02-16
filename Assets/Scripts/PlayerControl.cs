@@ -23,6 +23,10 @@ public class PlayerControl : NetworkBehaviour
     [SerializeField] [SyncVar] private int experience = 0;      // 현재 남은 경험치
     [SyncVar] private bool isFreezed = false;                   // 빙결 여부(true이면 다음 한 번의 내 턴에 교환 불가)
 
+    private List<bool> unveiled = new List<bool>();
+    // unveiled의 인덱스는 (플레이어 번호 - 1)이고, 그 값은 해당 플레이어의 속성이 이 플레이어에게 공개되었는지 여부이다.
+    // 자기 자신의 속성은 항상 공개되어 있는 것으로 취급한다.
+
     private bool isAI = false;                      // 인공지능 플레이어 여부(true이면 인공지능, false이면 사람)
     private bool hasDecidedObjectPlayer = false;    // 내 턴에 교환 상대를 선택했는지 여부
     private bool hasDecidedPlayCard = false;        // 교환 시 교환할 카드를 선택했는지 여부
@@ -67,19 +71,30 @@ public class PlayerControl : NetworkBehaviour
         isStart = false;
         isThinking = false;
         isCardDragging = false;
+        statAttack = 4;
+        statAuthority = 1;
+        statMentality = 6;
+        experience = 0;
+        for (int i = 0; i < 5; i++)
+        {
+            unveiled.Add(false);
+        }
         if (transform.position.z < 1f)
         {
             playerNum = 1;
+            unveiled[0] = true;
         }
         else if (transform.position.z < 4f)
         {
             if (transform.position.x > 0f)
             {
                 playerNum = 2;
+                unveiled[1] = true;
             }
             else
             {
                 playerNum = 5;
+                unveiled[4] = true;
             }
         }
         else
@@ -87,10 +102,12 @@ public class PlayerControl : NetworkBehaviour
             if (transform.position.x > 0f)
             {
                 playerNum = 3;
+                unveiled[2] = true;
             }
             else
             {
                 playerNum = 4;
+                unveiled[3] = true;
             }
         }
         //Log("Awake " + playerName);
@@ -245,6 +262,12 @@ public class PlayerControl : NetworkBehaviour
         else statMentality = 1;
     }
 
+    public void Unveil(int playerIndex)
+    {
+        if (!isServer || playerIndex < 0 || playerIndex >= 5 || unveiled[playerIndex]) return;
+        unveiled[playerIndex] = true;
+    }
+
     public void UpdateHealth()
     {
         if (!isServer) return;
@@ -271,6 +294,108 @@ public class PlayerControl : NetworkBehaviour
             RpcDead(); //뒤짐
         }
         displayedHealth = currentHealth;
+    }
+
+    public void UnveilFromExchangeLog()
+    {
+        if (!isServer || bm == null) return;
+        List<Exchange> exchanges = bm.GetExchanges();
+        List<int> unknowns = GetUnknownElements();
+        List<List<bool>> table = new List<List<bool>>();
+        for (int i = 0; i < 5; i++)
+        {
+            List<bool> row = new List<bool>();
+            for (int j = 0; j < 5; j++)
+            {
+                row.Add(false);
+            }
+            table.Add(row);
+        }
+        foreach (Exchange exc in exchanges)
+        {
+            if (exc.GetTurnPlayer() == this && !GetUnveiled(exc.GetObjectPlayer().GetPlayerIndex())) {
+                if (exc.GetTurnPlayerCard().Equals("Fire") && !exc.GetObjectPlayerCard().Equals("Dark")) {
+                    table[exc.GetObjectPlayer().GetPlayerIndex()][0] = true;
+                }
+                else if (exc.GetTurnPlayerCard().Equals("Water") && !exc.GetObjectPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetObjectPlayer().GetPlayerIndex()][1] = true;
+                }
+                else if (exc.GetTurnPlayerCard().Equals("Electricity") && !exc.GetObjectPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetObjectPlayer().GetPlayerIndex()][2] = true;
+                }
+                else if (exc.GetTurnPlayerCard().Equals("Wind") && !exc.GetObjectPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetObjectPlayer().GetPlayerIndex()][3] = true;
+                }
+                else if (exc.GetTurnPlayerCard().Equals("Poison") && !exc.GetObjectPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetObjectPlayer().GetPlayerIndex()][4] = true;
+                }
+
+            }
+            if (exc.GetObjectPlayer() == this && !GetUnveiled(exc.GetTurnPlayer().GetPlayerIndex()))
+            {
+                if (exc.GetObjectPlayerCard().Equals("Fire") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetTurnPlayer().GetPlayerIndex()][0] = true;
+                }
+                else if (exc.GetObjectPlayerCard().Equals("Water") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetTurnPlayer().GetPlayerIndex()][1] = true;
+                }
+                else if (exc.GetObjectPlayerCard().Equals("Electricity") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetTurnPlayer().GetPlayerIndex()][2] = true;
+                }
+                else if (exc.GetObjectPlayerCard().Equals("Wind") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetTurnPlayer().GetPlayerIndex()][3] = true;
+                }
+                else if (exc.GetObjectPlayerCard().Equals("Poison") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                {
+                    table[exc.GetTurnPlayer().GetPlayerIndex()][4] = true;
+                }
+
+            }
+        }
+        for (int i = 0; i < 5; i++)
+        {
+            if (GetUnveiled(i)) continue;
+            int count = 0;
+            foreach (int j in unknowns)
+            {
+                if (table[i][j]) count++;
+            }
+            // 속성을 모르는 같은 상대에게 (모르는 속성 개수 - 1)번의 서로 다른 속성 공격을 한 경우
+            // 상대의 속성을 확실히 알 수 있다.
+            if (count >= unknowns.Count - 1)
+            {
+                Unveil(i);
+                // TODO 잘 동작하는지 확인해 볼 것.
+            }
+        }
+
+        // 속성을 모르는 다른 모든 상대에게 같은 속성 공격을 한 경우
+        // 나머지 한 명의 속성을 확실히 알 수 있다.
+        foreach (int j in unknowns)
+        {
+            int count1 = 0, count2 = 0, pi = -1;
+            for (int i = 0; i < 5; i++)
+            {
+                if (GetUnveiled(i)) continue;
+                count1++;
+                if (table[i][j]) count2++;
+                else pi = i;
+            }
+
+            if (count2 >= count1 - 1 && pi != -1)
+            {
+                Unveil(pi);
+                // TODO 잘 동작하는지 확인해 볼 것.
+            }
+        }
     }
 
     [ClientCallback]
@@ -441,6 +566,36 @@ public class PlayerControl : NetworkBehaviour
         return bm.GetPlayerElement(GetPlayerNum() - 1);
     }
 
+    /// <summary>
+    /// 이 플레이어가 playerIndex 플레이어의 속성을 알아냈는지 여부를 반환합니다.
+    /// </summary>
+    /// <param name="playerIndex"></param>
+    /// <returns></returns>
+    public bool GetUnveiled(int playerIndex)
+    {
+        return unveiled[playerIndex];
+    }
+
+    /// <summary>
+    /// 이 플레이어가 알아내지 못한 속성들의 목록을 반환합니다.
+    /// 모든 속성의 플레이어를 알고 있으면 빈 목록을 반환합니다.
+    /// bm이 null이면 null을 반환합니다.
+    /// </summary>
+    /// <returns></returns>
+    public List<int> GetUnknownElements()
+    {
+        if (bm == null) return null;
+        List<int> l = new List<int>();
+        for (int i = 0; i < 5; i++)
+        {
+            if (!unveiled[i])
+            {
+                l.Add(bm.GetPlayers()[i].GetPlayerElement());
+            }
+        }
+        return l;
+    }
+
     public void SetAI(bool AI)
     {
         isAI = AI;
@@ -547,10 +702,14 @@ public class PlayerControl : NetworkBehaviour
 
         // TODO 만약 상대 플레이어의 속성을 모르는 상태이면 그 상대가 목표임을 공개하면 안 된다.
 
-        //Log(bm.GetPlayers()[t[0]].GetName() + " is my objective.");
-        bm.GetPlayers()[t[0]].SetHighlight(true);
-        //Log(bm.GetPlayers()[t[1]].GetName() + " is my objective, too.");
-        bm.GetPlayers()[t[1]].SetHighlight(true);
+        while (!unveiled[t[0]] || !unveiled[t[1]])
+        {
+            //Log(bm.GetPlayers()[t[0]].GetName() + " is my objective.");
+            if (unveiled[t[0]]) bm.GetPlayers()[t[0]].SetHighlight(true);
+            //Log(bm.GetPlayers()[t[1]].GetName() + " is my objective, too.");
+            if (unveiled[t[1]]) bm.GetPlayers()[t[1]].SetHighlight(true);
+            yield return null;
+        }
     }
     
     private void Log(string msg)

@@ -64,12 +64,12 @@ public class CardDatabase : MonoBehaviour {
         ci = new CardInfo("Life", "생명", "낼 때 체력을 5 회복합니다. 받을 때 체력을 5 회복합니다. 최대 체력은 52입니다.");
         cardInfo.Add(ci);
 
-        // 어둠 카드
-        ci = new CardInfo("Dark", "어둠", "낼 때 상대에게서 받는 카드의 받을 때 효과를 무시합니다.");
-        cardInfo.Add(ci);
-
         // 빛 카드
         ci = new CardInfo("Light", "빛", "낼 때 권력을 1 얻고 상대 마법사의 속성을 확인합니다. 받을 때 권력을 1 얻습니다.");
+        cardInfo.Add(ci);
+        
+        // 어둠 카드
+        ci = new CardInfo("Dark", "어둠", "낼 때 상대에게서 받는 카드의 받을 때 효과를 무시합니다.");
         cardInfo.Add(ci);
 
         // 시간 카드

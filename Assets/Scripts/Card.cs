@@ -8,6 +8,7 @@ public class Card : NetworkBehaviour {
 
     [SerializeField] private string cardName;
     [SerializeField] private int cardCode; // 0 ~ 9
+    // 0: 불, 1: 물, 2: 전기, 3: 바람, 4: 독, 5: 생명, 6: 빛, 7: 어둠, 8: 시간, 9: 타락
     private Image Border; // HighLight
     static public PlayerControl localPlayer = null;
 
@@ -100,8 +101,8 @@ public class Card : NetworkBehaviour {
         Quaternion br;
         float t = Time.time;
 
-        // 내가 낸 카드이면 앞면에서 뒷면으로 뒤집습니다.
-        if (start / 2 == localPlayer.GetPlayerIndex())
+        // 내가 낸 카드가 공격 카드이면 앞면에서 뒷면으로 뒤집습니다.
+        if (start / 2 == localPlayer.GetPlayerIndex() && GetCardCode() < 5)
         {
             t = Time.time;
             fr = GetRotationFront(start);
@@ -141,8 +142,20 @@ public class Card : NetworkBehaviour {
         }
         GetComponent<Transform>().rotation = dr;
 
-        // 내가 받은 카드이면 뒷면에서 앞면으로 뒤집습니다.
-        if (dest / 2 == localPlayer.GetPlayerIndex())
+        // 내가 받은 카드가 공격 카드이면 뒷면에서 앞면으로 뒤집습니다.
+        if (dest / 2 == localPlayer.GetPlayerIndex() && GetCardCode() < 5)
+        {
+            t = Time.time;
+            fr = GetRotationFront(dest);
+            br = GetRotationBack(dest);
+            while (Time.time < t + 1f)
+            {
+                GetComponent<Transform>().rotation = Quaternion.Slerp(br, fr, (Time.time - t) / 1f);
+                yield return null;
+            }
+            GetComponent<Transform>().rotation = fr;
+        }
+        else if (start == 10 && GetCardCode() >= 5)
         {
             t = Time.time;
             fr = GetRotationFront(dest);
