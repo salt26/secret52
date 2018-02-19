@@ -609,8 +609,8 @@ public class BattleManager : NetworkBehaviour
         List<int> c = new List<int>();
         for (int i = 0; i < 5; i++)
         {
-            c.Add(cardcode[2 * rand1[i]]);
-            c.Add(cardcode[2 * rand2[i] + 1]);
+            c.Add(cardcode[rand1[i]]);
+            c.Add(cardcode[rand2[i] + 5]);
         }
         cardcode = c;
     }

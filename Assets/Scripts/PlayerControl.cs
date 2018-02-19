@@ -41,7 +41,9 @@ public class PlayerControl : NetworkBehaviour
 
     private GameObject Border;
     private SpriteRenderer Face;
-    
+    private GameObject targetElementImage1;
+    private GameObject targetElementImage2;
+
     public GameObject Ice;
     public GameObject targetMark;
     private bool isMarked; //마크가 되었는지 여부
@@ -61,6 +63,8 @@ public class PlayerControl : NetworkBehaviour
         HealthBar = GetComponentInChildren<Finder>().GetComponent<Image>().rectTransform;
         Border = GetComponentsInChildren<SpriteRenderer>()[1].gameObject;
         Face = GetComponentsInChildren<SpriteRenderer>()[0];
+        targetElementImage1 = GameObject.Find("TargetElementImage1");
+        targetElementImage2 = GameObject.Find("TargetElementImage2");
         Border.SetActive(false);
         currentHealth = maxHealth;
         displayedHealth = currentHealth;
@@ -700,8 +704,45 @@ public class PlayerControl : NetworkBehaviour
             yield return null;
         } while (!b);
 
-        // TODO 만약 상대 플레이어의 속성을 모르는 상태이면 그 상대가 목표임을 공개하면 안 된다.
+        switch (bm.GetPlayerElement(t[0]))
+        {
+            case 0:
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Fire", typeof(Texture)) as Texture;
+                break;
+            case 1:
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Water", typeof(Texture)) as Texture;
+                break;
+            case 2:
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Electricity", typeof(Texture)) as Texture;
+                break;
+            case 3:
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Wind", typeof(Texture)) as Texture;
+                break;
+            case 4:
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Poison", typeof(Texture)) as Texture;
+                break;
+        }
 
+        switch (bm.GetPlayerElement(t[1]))
+        {
+            case 0:
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Fire", typeof(Texture)) as Texture;
+                break;
+            case 1:
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Water", typeof(Texture)) as Texture;
+                break;
+            case 2:
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Electricity", typeof(Texture)) as Texture;
+                break;
+            case 3:
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Wind", typeof(Texture)) as Texture;
+                break;
+            case 4:
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Poison", typeof(Texture)) as Texture;
+                break;
+        }
+        
+        // TODO 만약 상대 플레이어의 속성을 모르는 상태이면 그 상대가 목표임을 공개하면 안 된다.
         while (!unveiled[t[0]] || !unveiled[t[1]])
         {
             //Log(bm.GetPlayers()[t[0]].GetName() + " is my objective.");
