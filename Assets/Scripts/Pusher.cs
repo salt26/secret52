@@ -153,7 +153,7 @@ public class Pusher : MonoBehaviour
         //LogDisplay.AddText("opponentPlayerCardCode is " + opponentPlayerCardCode + ".");
         if (selectedCardInfo != null)
         {
-            if (opponentPlayerCardCode == 3)
+            if (opponentPlayerCardCode == 8)    // TODO 하드코딩 주의
                 MoveDeceive(GameObject.FindGameObjectWithTag(selectedCardInfo.GetLR()).transform.position, selectedCardInfo.GetOriginalPosition(), selectedCardInfo.GetLR());
             else
                 MoveCardDown(GameObject.FindGameObjectWithTag(selectedCardInfo.GetLR()).transform.position, selectedCardInfo.GetOriginalPosition(), selectedCardInfo.GetLR());

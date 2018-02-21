@@ -57,6 +57,7 @@ public class PlayerControl : NetworkBehaviour
     public GameObject attackUIText;
     public GameObject authorityUIText;
     private bool isMarked; //마크가 되었는지 여부
+    private bool isPlayingCannotRequest;
 
     private bool isAlerted0;
     private bool isAlerted1;
@@ -82,6 +83,7 @@ public class PlayerControl : NetworkBehaviour
         Border.SetActive(false);
         currentHealth = maxHealth;
         displayedHealth = currentHealth;
+        isPlayingCannotRequest = false;
         isAlerted0 = false;
         isAlerted1 = false;
         isAlerted2 = false;
@@ -89,8 +91,8 @@ public class PlayerControl : NetworkBehaviour
         isStart = false;
         isThinking = false;
         isCardDragging = false;
-        statAttack = 4;     // 초기값 4로 설정
-        statAuthority = 1;  // 초기값 1로 설정
+        statAttack = 26;     // 초기값 4로 설정
+        statAuthority = Random.Range(1, 6);  // 초기값 1로 설정
         statMentality = 6;  // 초기값 6으로 설정
         currentAttack = statAttack;
         currentAuthority = statAuthority;
@@ -173,6 +175,7 @@ public class PlayerControl : NetworkBehaviour
             bm.players[playerNum - 1] = this;
             isStart = true;
             //Log("FixedUpdate " + playerName);
+            StartCoroutine("CannotRequestExchange");
             if (isLocalPlayer)
                 CmdReady();
         }
@@ -298,6 +301,7 @@ public class PlayerControl : NetworkBehaviour
     [ClientRpc]
     public void RpcUnveil(int playerIndex)
     {
+        if (!isLocalPlayer) return;
         unveiled[playerIndex] = true;
         if (bm == null) return;
         bm.GetPlayers()[playerIndex].SetElementSprite();
@@ -459,7 +463,7 @@ public class PlayerControl : NetworkBehaviour
                     }
                     else
                     {
-                        // TODO 교환 요청이 불가능하면 "권력 때문에 교환을 요청할 수 없습니다." 메시지 띄우기
+                        // 교환 요청이 불가능하면 "권력 때문에 교환을 요청할 수 없습니다." 메시지 띄우기
                         StartCoroutine("CannotRequestExchange");
                         objectTarget = null;
                     }
@@ -476,7 +480,7 @@ public class PlayerControl : NetworkBehaviour
                     }
                     else
                     {
-                        // TODO 교환 요청이 불가능하면 "권력 때문에 교환을 요청할 수 없습니다." 메시지 띄우기
+                        // 교환 요청이 불가능하면 "권력 때문에 교환을 요청할 수 없습니다." 메시지 띄우기
                         StartCoroutine("CannotRequestExchange");
                         objectTarget = null;
                     }
@@ -488,6 +492,11 @@ public class PlayerControl : NetworkBehaviour
 
     IEnumerator CannotRequestExchange()
     {
+        if (isPlayingCannotRequest)
+        {
+            yield break;
+        }
+        isPlayingCannotRequest = true;
         Color cw, cb;
         int frame = 24;
         for (int i = 1; i <= frame; i++)
@@ -499,7 +508,21 @@ public class PlayerControl : NetworkBehaviour
             cannotRequestTextW2.GetComponent<Text>().color = cw;
             yield return new WaitForFixedUpdate();
         }
-        yield return new WaitForSeconds(0.8f);
+        for (int i = (frame / 2) - 1; i >= 0; i--)
+        {
+            cw = Color.Lerp(new Color(1f, 1f, 1f, 0f), new Color(1f, 1f, 1f, 1f), i / (float)(frame / 2));
+            cannotRequestTextW1.GetComponent<Text>().color = cw;
+            cannotRequestTextW2.GetComponent<Text>().color = cw;
+            yield return new WaitForFixedUpdate();
+        }
+        for (int i = 1; i <= frame / 2; i++)
+        {
+            cw = Color.Lerp(new Color(1f, 1f, 1f, 0f), new Color(1f, 1f, 1f, 1f), i / (float)(frame / 2));
+            cannotRequestTextW1.GetComponent<Text>().color = cw;
+            cannotRequestTextW2.GetComponent<Text>().color = cw;
+            yield return new WaitForFixedUpdate();
+        }
+        yield return new WaitForSeconds(0.5f);
         for (int i = frame - 1; i >= 0; i--)
         {
             cw = Color.Lerp(new Color(1f, 1f, 1f, 0f), new Color(1f, 1f, 1f, 1f), i / (float)frame);
@@ -509,6 +532,7 @@ public class PlayerControl : NetworkBehaviour
             cannotRequestTextW2.GetComponent<Text>().color = cw;
             yield return new WaitForFixedUpdate();
         }
+        isPlayingCannotRequest = false;
     }
 
     // 임시 코드
