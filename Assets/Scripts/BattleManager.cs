@@ -367,6 +367,10 @@ public class BattleManager : NetworkBehaviour
             {
                 exchanges.Add(exchange.gameObject);
                 RpcAddExchangeLog(exchange.gameObject);
+                for (int i = 0; i < 5; i++)
+                {
+                    GetPlayers()[i].UnveilFromExchangeLog();
+                }
             }
 
             // 대전 규칙: 한 명이라도 사망하면 게임이 끝나고, 게임이 끝나는 시점에 "자신의 목표 중 사망자의 수"가 가장 많은 플레이어들이 승리한다.

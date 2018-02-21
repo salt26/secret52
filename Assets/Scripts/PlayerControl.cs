@@ -9,6 +9,9 @@ public class PlayerControl : NetworkBehaviour
 {
 
     [SyncVar] private int currentHealth;    // 현재 남은 체력(실시간으로 변화, 외부 열람 불가)
+    [SyncVar] private int currentAttack;    // 현재 공격력(실시간으로 변화, 외부 열람 불가)
+    [SyncVar] private int currentAuthority;    // 현재 권력(실시간으로 변화, 외부 열람 불가)
+    [SyncVar] private int currentMentality;    // 현재 권력(실시간으로 변화, 외부 열람 불가)
     [SerializeField] [SyncVar] private int maxHealth = 52;      // 최대 체력(초기 체력)
     [SyncVar] private GameObject character; // 캐릭터 모델
     [SyncVar] private bool isDead = false;  // 사망 여부(true이면 사망)
@@ -17,9 +20,9 @@ public class PlayerControl : NetworkBehaviour
     [SyncVar] public Color color = Color.white;
 
     [SyncVar] private int displayedHealth;                      // 현재 남은 체력(턴이 끝날 때만 변화, 외부 열람 가능)
-    [SerializeField] [SyncVar] private int statAttack = 4;      // 현재 공격력
-    [SerializeField] [SyncVar] private int statAuthority = 1;   // 현재 권력
-    [SerializeField] [SyncVar] private int statMentality = 6;   // 현재 정신력
+    [SerializeField] [SyncVar] private int statAttack;      // 현재 공격력(외부 열람 가능)
+    [SerializeField] [SyncVar] private int statAuthority;   // 현재 권력(외부 열람 가능)
+    [SerializeField] [SyncVar] private int statMentality;   // 현재 정신력(외부 열람 가능)
     [SerializeField] [SyncVar] private int experience = 0;      // 현재 남은 경험치
     [SyncVar] private bool isFreezed = false;                   // 빙결 여부(true이면 다음 한 번의 내 턴에 교환 불가)
 
@@ -43,9 +46,16 @@ public class PlayerControl : NetworkBehaviour
     private SpriteRenderer Face;
     private GameObject targetElementImage1;
     private GameObject targetElementImage2;
+    private GameObject cannotRequestTextB;
+    private GameObject cannotRequestTextW1;
+    private GameObject cannotRequestTextW2;
+    private SpriteRenderer elementSprite;
 
     public GameObject Ice;
     public GameObject targetMark;
+    public GameObject healthText;
+    public GameObject attackUIText;
+    public GameObject authorityUIText;
     private bool isMarked; //마크가 되었는지 여부
 
     private bool isAlerted0;
@@ -65,6 +75,10 @@ public class PlayerControl : NetworkBehaviour
         Face = GetComponentsInChildren<SpriteRenderer>()[0];
         targetElementImage1 = GameObject.Find("TargetElementImage1");
         targetElementImage2 = GameObject.Find("TargetElementImage2");
+        cannotRequestTextB = GameObject.Find("CannotRequestTextB");
+        cannotRequestTextW1 = GameObject.Find("CannotRequestTextW1");
+        cannotRequestTextW2 = GameObject.Find("CannotRequestTextW2");
+        elementSprite = GetComponentsInChildren<SpriteRenderer>()[2];   // Player 프리팹의 하이어러키에서 스프라이트 순서 중요!
         Border.SetActive(false);
         currentHealth = maxHealth;
         displayedHealth = currentHealth;
@@ -75,9 +89,12 @@ public class PlayerControl : NetworkBehaviour
         isStart = false;
         isThinking = false;
         isCardDragging = false;
-        statAttack = 4;
-        statAuthority = 1;
-        statMentality = 6;
+        statAttack = 4;     // 초기값 4로 설정
+        statAuthority = 1;  // 초기값 1로 설정
+        statMentality = 6;  // 초기값 6으로 설정
+        currentAttack = statAttack;
+        currentAuthority = statAuthority;
+        currentMentality = statMentality;
         experience = 0;
         for (int i = 0; i < 5; i++)
         {
@@ -196,7 +213,10 @@ public class PlayerControl : NetworkBehaviour
         if (bm.GetTurnStep() == 3 && isMarked == true)
             Destroy(GameObject.Find("TargetMark(Clone)"));
 
-        HealthBar.sizeDelta = new Vector2(displayedHealth * 100f / 6f, HealthBar.sizeDelta.y); // HealthBar 변경 -> displayedHealth 기준으로 계산하도록 수정
+        HealthBar.sizeDelta = new Vector2(displayedHealth * 100f / maxHealth, HealthBar.sizeDelta.y); // HealthBar 변경 -> displayedHealth 기준으로 계산하도록 수정
+        healthText.GetComponent<Text>().text = displayedHealth.ToString();
+        attackUIText.GetComponent<Text>().text = statAttack.ToString();
+        authorityUIText.GetComponent<Text>().text = statAuthority.ToString();
 
         if (isServer && isAI && bm.GetTurnStep() == 2 && bm.GetTurnPlayer().Equals(this) && !isThinking)
         {
@@ -255,13 +275,15 @@ public class PlayerControl : NetworkBehaviour
     public void Lighted()
     {
         if (!isServer) return;
-        statAuthority++;
+        if (statAuthority < 99) statAuthority++;
+        else statAuthority = 99;
     }
 
     public void Corrupted()
     {
         if (!isServer) return;
-        statAttack++;
+        if (statAttack < 99) statAttack++;
+        else statAttack = 99;
         if (statMentality > 1) statMentality--;
         else statMentality = 1;
     }
@@ -270,6 +292,15 @@ public class PlayerControl : NetworkBehaviour
     {
         if (!isServer || playerIndex < 0 || playerIndex >= 5 || unveiled[playerIndex]) return;
         unveiled[playerIndex] = true;
+        RpcUnveil(playerIndex);
+    }
+
+    [ClientRpc]
+    public void RpcUnveil(int playerIndex)
+    {
+        unveiled[playerIndex] = true;
+        if (bm == null) return;
+        bm.GetPlayers()[playerIndex].SetElementSprite();
     }
 
     public void UpdateHealth()
@@ -420,20 +451,63 @@ public class PlayerControl : NetworkBehaviour
                 if (objectTarget == null) 
                 {
                     objectTarget = hit.collider.gameObject.GetComponentInParent<PlayerControl>();
-                    Instantiate(targetMark, hit.collider.gameObject.GetComponentInParent<PlayerControl>().transform);
-                    isMarked = true;
-                    //Log("Set " + hit.collider.gameObject.GetComponentInParent<PlayerControl>().GetName() + " to a target.");
+                    if (CanRequestExchange(objectTarget.GetPlayerIndex()))
+                    {
+                        Instantiate(targetMark, hit.collider.gameObject.GetComponentInParent<PlayerControl>().transform);
+                        isMarked = true;
+                        //Log("Set " + hit.collider.gameObject.GetComponentInParent<PlayerControl>().GetName() + " to a target.");
+                    }
+                    else
+                    {
+                        // TODO 교환 요청이 불가능하면 "권력 때문에 교환을 요청할 수 없습니다." 메시지 띄우기
+                        StartCoroutine("CannotRequestExchange");
+                        objectTarget = null;
+                    }
                 }
                 else if (!objectTarget.Equals(hit.collider.gameObject.GetComponentInParent<PlayerControl>()))
                 {
                     Destroy(GameObject.Find("TargetMark(Clone)"));
                     objectTarget = hit.collider.gameObject.GetComponentInParent<PlayerControl>();
-                    Instantiate(targetMark, hit.collider.gameObject.GetComponentInParent<PlayerControl>().transform);
-                    isMarked = true;
-                    //Log("Set " + hit.collider.gameObject.GetComponentInParent<PlayerControl>().GetName() + " to a target.");
+                    if (CanRequestExchange(objectTarget.GetPlayerIndex()))
+                    {
+                        Instantiate(targetMark, hit.collider.gameObject.GetComponentInParent<PlayerControl>().transform);
+                        isMarked = true;
+                        //Log("Set " + hit.collider.gameObject.GetComponentInParent<PlayerControl>().GetName() + " to a target.");
+                    }
+                    else
+                    {
+                        // TODO 교환 요청이 불가능하면 "권력 때문에 교환을 요청할 수 없습니다." 메시지 띄우기
+                        StartCoroutine("CannotRequestExchange");
+                        objectTarget = null;
+                    }
 
                 }
             }
+        }
+    }
+
+    IEnumerator CannotRequestExchange()
+    {
+        Color cw, cb;
+        int frame = 24;
+        for (int i = 1; i <= frame; i++)
+        {
+            cw = Color.Lerp(new Color(1f, 1f, 1f, 0f), new Color(1f, 1f, 1f, 1f), i / (float)frame);
+            cb = Color.Lerp(new Color(0f, 0f, 0f, 0f), new Color(0f, 0f, 0f, 1f), i / (float)frame);
+            cannotRequestTextB.GetComponent<Text>().color = cb;
+            cannotRequestTextW1.GetComponent<Text>().color = cw;
+            cannotRequestTextW2.GetComponent<Text>().color = cw;
+            yield return new WaitForFixedUpdate();
+        }
+        yield return new WaitForSeconds(0.8f);
+        for (int i = frame - 1; i >= 0; i--)
+        {
+            cw = Color.Lerp(new Color(1f, 1f, 1f, 0f), new Color(1f, 1f, 1f, 1f), i / (float)frame);
+            cb = Color.Lerp(new Color(0f, 0f, 0f, 0f), new Color(0f, 0f, 0f, 1f), i / (float)frame);
+            cannotRequestTextB.GetComponent<Text>().color = cb;
+            cannotRequestTextW1.GetComponent<Text>().color = cw;
+            cannotRequestTextW2.GetComponent<Text>().color = cw;
+            yield return new WaitForFixedUpdate();
         }
     }
 
@@ -660,9 +734,66 @@ public class PlayerControl : NetworkBehaviour
         return objectTarget;
     }
 
+    /// <summary>
+    /// 상대와의 권력을 비교하여 내가 교환을 요청할 수 있는지 알려주는 함수입니다.
+    /// 교환을 요청할 수 있으면 true를 반환합니다.
+    /// 교환을 요청할 수 없거나 bm이 null이면 false를 반환합니다.
+    /// </summary>
+    /// <param name="playerIndex"></param>
+    /// <returns></returns>
+    public bool CanRequestExchange(int playerIndex)
+    {
+        if (bm == null) return false;
+        int opponentAuthority = bm.GetPlayers()[playerIndex].GetStatAuthority();
+        // 내가 상대보다 권력이 더 높으면 교환 요청 가능
+        if (GetStatAuthority() >= opponentAuthority) return true;
+
+        // 내가 권력 꼴지이고 상대가 권력 1등이면 교환 요청 가능
+        int maxAuthority = 0;
+        int minAuthority = 100;
+        for (int i = 0; i < 5; i++)
+        {
+            int a = bm.GetPlayers()[i].GetStatAuthority();
+            if (a > maxAuthority) maxAuthority = a;
+            if (a < minAuthority) minAuthority = a;
+        }
+        if (GetStatAuthority() == minAuthority && opponentAuthority == maxAuthority) return true;
+        else return false;
+    }
+
     public int GetPlayerIndex()
     {
         return playerNum - 1;
+    }
+
+    /// <summary>
+    /// 이 플레이어의 실제 속성에 따라 해당 속성 스프라이트를 표시하는 함수입니다.
+    /// 이 플레이어의 속성을 알게 되었을 때만 호출하십시오.
+    /// </summary>
+    public void SetElementSprite()
+    {
+        Log("SetElementSprite " + GetPlayerElement());
+        switch (GetPlayerElement())
+        {
+            case 0:
+                elementSprite.sprite = Resources.Load("Elements/Fire element", typeof(Sprite)) as Sprite;
+                break;
+            case 1:
+                elementSprite.sprite = Resources.Load("Elements/Water element", typeof(Sprite)) as Sprite;
+                break;
+            case 2:
+                elementSprite.sprite = Resources.Load("Elements/Electricity element", typeof(Sprite)) as Sprite;
+                break;
+            case 3:
+                elementSprite.sprite = Resources.Load("Elements/Wind element", typeof(Sprite)) as Sprite;
+                break;
+            case 4:
+                elementSprite.sprite = Resources.Load("Elements/Poison element", typeof(Sprite)) as Sprite;
+                break;
+            default:
+                elementSprite.sprite = Resources.Load("Elements/Unknown element", typeof(Sprite)) as Sprite;
+                break;
+        }
     }
 
     public void SetHighlight(bool TF)
@@ -703,6 +834,8 @@ public class PlayerControl : NetworkBehaviour
             }
             yield return null;
         } while (!b);
+
+        SetElementSprite(); // 여기서 자신의 속성을 표시하게 함
 
         switch (bm.GetPlayerElement(t[0]))
         {
@@ -978,6 +1111,10 @@ public class PlayerControl : NetworkBehaviour
     {
         yield return null;
     }
+
+    /*
+     * 여기서부터는 AI(인공지능) 코드입니다.
+     */
 
     IEnumerator AITurnDelay()
     {
