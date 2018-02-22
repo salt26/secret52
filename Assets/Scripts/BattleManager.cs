@@ -40,10 +40,18 @@ public class BattleManager : NetworkBehaviour
     // 4의 목표는 0 또는 3을 잡는 것입니다.
 
     private SyncListBool isWin = new SyncListBool(); // 인덱스는 players의 인덱스 기준, 그 플레이어가 승리하면 true
+
+    private SyncListBool playerConfirmStat = new SyncListBool();
+    // playerConfirmStat은 각 플레이어가 능력치 분배를 확정지었는지 여부를 나타냅니다.
+    // 이것의 인덱스는 플레이어 인덱스와 같습니다.
+    // 이것의 값이 true이면 그 플레이어는 능력치 패널에서 능력치를 변경할 수 없습니다.
+    // 이것의 값이 false일 때만 그 플레이어가 직접 능력치를 변경할 수 있습니다.
+    // 값을 바꿀 때는 항상 RpcPlayerConfirmStat(playerIndex, b)를 함께 불러주어야 합니다.
+
     [SyncVar] private int turnPlayer = 0; // 현재 자신의 턴을 진행하는 플레이어 번호
     [SyncVar] private int turnStep;   // 턴의 단계 (0: 대전 시작, 1: 턴 시작, 2: 턴 진행자의 교환 상대 선택과 교환할 카드 선택,
                                       //           3: 교환당하는 자의 교환할 카드 선택, 4: 교환 중(카드를 낼 때와 받을 때 효과 발동),
-                                      //           5: 빙결 발동, 6: 턴이 끝날 때 효과 발동, 7: 턴 종료)
+                                      //           5: 빙결 발동, 6: 턴이 끝날 때 효과 발동, 7: 턴 종료, 13: 능력치 분배 중)
     [SyncVar] private int objectPlayer = -1;     // 교환당하는 플레이어
     [SyncVar] private int turnPlayerCard = -1;            // 턴을 진행한 플레이어가 낸 카드
     [SyncVar] private int objectPlayerCard = -1;          // 교환당하는 플레이어가 낸 카드
@@ -186,6 +194,7 @@ public class BattleManager : NetworkBehaviour
         {
             RpcPrintLog("Player" + i + "'s element is " + GetPlayerElement(i));
             isWin.Add(false);
+            playerConfirmStat.Add(true);
             elementPermutation.Add(temp[i]);
         }
 
@@ -357,7 +366,7 @@ public class BattleManager : NetworkBehaviour
             bool isEnd = false;
             for (int i = 0; i < 5; i++)
             {
-                players[i].UpdateHealth();
+                players[i].UpdateHealthAndStat();
             }
             exchange.SetTurnPlayerHealthVariation(players[exchange.GetTurnPlayer().GetPlayerIndex()].GetHealth());
             if (exchange.GetObjectPlayer() != null)
@@ -410,7 +419,14 @@ public class BattleManager : NetworkBehaviour
                 }
                 RpcPrintLog("Battle ends.");
                 */
-                StartCoroutine(ReturnToLobby(10f));
+                for (int i = 0; i < 5; i++)
+                {
+                    for (int j = 0; j < 5; j++)
+                    {
+                        GetPlayers()[i].Unveil(j);
+                    }
+                }
+                StartCoroutine(ReturnToLobby(13f));
                 turnStep = 8;
             }
             else
@@ -441,6 +457,10 @@ public class BattleManager : NetworkBehaviour
         else if (turnStep == 12)
         {
             // 클라이언트 한 명의 접속이 끊겨 대전이 비정상적으로 종료되는 경우
+        }
+        else if (turnStep == 13)
+        {
+            // TODO 능력치 분배 중
         }
 
     }
@@ -481,11 +501,19 @@ public class BattleManager : NetworkBehaviour
         else return null;
     }
 
+    /// <summary>
+    /// 현재 턴을 진행하는 플레이어를 반환합니다.
+    /// </summary>
+    /// <returns></returns>
     public PlayerControl GetTurnPlayer()
     {
         return players[turnPlayer];
     }
 
+    /// <summary>
+    /// 현재 교환 요청을 받은 플레이어를 반환합니다.
+    /// </summary>
+    /// <returns></returns>
     public PlayerControl GetObjectPlayer()
     {
         if (objectPlayer == -1) return null;
@@ -500,6 +528,11 @@ public class BattleManager : NetworkBehaviour
     public SyncListBool GetIsWin()
     {
         return isWin;
+    }
+
+    public bool GetPlayerConfirmStat(int playerIndex)
+    {
+        return playerConfirmStat[playerIndex];
     }
 
     /// <summary>
@@ -579,6 +612,12 @@ public class BattleManager : NetworkBehaviour
     public void PlayerReady(int playerIndex)
     {
         playerReady.Add(playerIndex);
+    }
+
+    public void SetPlayerConfirmStat(int playerIndex, bool b)
+    {
+        playerConfirmStat[playerIndex] = b;
+        RpcSetPlayerConfirmStat(playerIndex, b);
     }
 
     private List<int> RandomListGenerator(int n)
@@ -716,6 +755,12 @@ public class BattleManager : NetworkBehaviour
     private void RpcPlayerWinIndex(int i)
     {
         isWin[i] = true;
+    }
+
+    [ClientRpc]
+    private void RpcSetPlayerConfirmStat(int playerIndex, bool b)
+    {
+        playerConfirmStat[playerIndex] = b;
     }
 
     [ClientRpc]

@@ -7,12 +7,18 @@ ModelImporter:
   fileIDToRecycleName:
     100000: root 1
     100002: //RootNode
+    100004: node_id4
     400000: root 1
     400002: //RootNode
+    400004: node_id4
     2300000: root 1
+    2300002: node_id4
     3300000: root 1
+    3300002: node_id4
     4300000: root
+    4300002: node_id4
     6400000: root 1
+    6400002: node_id4
   materials:
     importMaterials: 1
     materialName: 0

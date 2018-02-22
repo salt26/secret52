@@ -12,6 +12,7 @@ public class PlayerControl : NetworkBehaviour
     [SyncVar] private int currentAttack;    // 현재 공격력(실시간으로 변화, 외부 열람 불가)
     [SyncVar] private int currentAuthority;    // 현재 권력(실시간으로 변화, 외부 열람 불가)
     [SyncVar] private int currentMentality;    // 현재 권력(실시간으로 변화, 외부 열람 불가)
+    [SyncVar] private int currentExperience;   // 현재 남은 경험치(실시간으로 변화, 외부 열람 불가)
     [SerializeField] [SyncVar] private int maxHealth = 52;      // 최대 체력(초기 체력)
     [SyncVar] private GameObject character; // 캐릭터 모델
     [SyncVar] private bool isDead = false;  // 사망 여부(true이면 사망)
@@ -91,12 +92,13 @@ public class PlayerControl : NetworkBehaviour
         isStart = false;
         isThinking = false;
         isCardDragging = false;
-        statAttack = 26;     // 초기값 4로 설정
+        statAttack = 13;     // 초기값 4로 설정
         statAuthority = Random.Range(1, 6);  // 초기값 1로 설정
         statMentality = 6;  // 초기값 6으로 설정
         currentAttack = statAttack;
         currentAuthority = statAuthority;
         currentMentality = statMentality;
+        currentExperience = experience;
         experience = 0;
         for (int i = 0; i < 5; i++)
         {
@@ -175,7 +177,6 @@ public class PlayerControl : NetworkBehaviour
             bm.players[playerNum - 1] = this;
             isStart = true;
             //Log("FixedUpdate " + playerName);
-            StartCoroutine("CannotRequestExchange");
             if (isLocalPlayer)
                 CmdReady();
         }
@@ -278,17 +279,17 @@ public class PlayerControl : NetworkBehaviour
     public void Lighted()
     {
         if (!isServer) return;
-        if (statAuthority < 99) statAuthority++;
-        else statAuthority = 99;
+        if (currentAuthority < 99) currentAuthority++;
+        else currentAuthority = 99;
     }
 
     public void Corrupted()
     {
         if (!isServer) return;
-        if (statAttack < 99) statAttack++;
-        else statAttack = 99;
-        if (statMentality > 1) statMentality--;
-        else statMentality = 1;
+        if (currentAttack < 99) currentAttack++;
+        else currentAttack = 99;
+        if (currentMentality > 1) currentMentality--;
+        else currentMentality = 1;
     }
 
     public void Unveil(int playerIndex)
@@ -305,9 +306,14 @@ public class PlayerControl : NetworkBehaviour
         unveiled[playerIndex] = true;
         if (bm == null) return;
         bm.GetPlayers()[playerIndex].SetElementSprite();
+        // Highlight
+        if (bm.GetTarget(GetPlayerIndex()).IndexOf(playerIndex) != -1)
+        {
+            bm.GetPlayers()[playerIndex].SetHighlight(true);
+        }
     }
 
-    public void UpdateHealth()
+    public void UpdateHealthAndStat()
     {
         if (!isServer) return;
         if (currentHealth <= 0)
@@ -333,6 +339,9 @@ public class PlayerControl : NetworkBehaviour
             RpcDead(); //뒤짐
         }
         displayedHealth = currentHealth;
+        statAttack = currentAttack;
+        statAuthority = currentAuthority;
+        statMentality = currentMentality;
     }
 
     public void UnveilFromExchangeLog()
@@ -350,25 +359,48 @@ public class PlayerControl : NetworkBehaviour
             }
             table.Add(row);
         }
+        if (exchanges.Count > 0)
+        {
+            // 마지막 교환에서 직접적으로 상대 속성을 알 수 있는 경우 (빛 카드를 사용하거나 상대 속성의 카드로 2의 피해를 준 경우)
+            Exchange exc = exchanges[exchanges.Count - 1];
+            if (exc.GetTurnPlayer() == this && exc.GetTurnPlayerCard().GetCardName().Equals("Light"))
+            {
+                Unveil(exc.GetObjectPlayer().GetPlayerIndex());
+            }
+            else if (exc.GetObjectPlayer() == this && exc.GetObjectPlayerCard().GetCardName().Equals("Light"))
+            {
+                Unveil(exc.GetTurnPlayer().GetPlayerIndex());
+            }
+            else if (exc.GetTurnPlayer() == this && exc.GetTurnPlayerCard().GetCardCode() == exc.GetObjectPlayer().GetPlayerElement()
+                && !exc.GetObjectPlayerCard().GetCardName().Equals("Dark"))
+            {
+                Unveil(exc.GetObjectPlayer().GetPlayerIndex());
+            }
+            else if (exc.GetObjectPlayer() == this && exc.GetObjectPlayerCard().GetCardCode() == exc.GetTurnPlayer().GetPlayerElement()
+                && !exc.GetTurnPlayerCard().GetCardName().Equals("Dark"))
+            {
+                Unveil(exc.GetTurnPlayer().GetPlayerIndex());
+            }
+        }
         foreach (Exchange exc in exchanges)
         {
             if (exc.GetTurnPlayer() == this && !GetUnveiled(exc.GetObjectPlayer().GetPlayerIndex())) {
-                if (exc.GetTurnPlayerCard().Equals("Fire") && !exc.GetObjectPlayerCard().Equals("Dark")) {
+                if (exc.GetTurnPlayerCard().GetCardName().Equals("Fire") && !exc.GetObjectPlayerCard().GetCardName().Equals("Dark")) {
                     table[exc.GetObjectPlayer().GetPlayerIndex()][0] = true;
                 }
-                else if (exc.GetTurnPlayerCard().Equals("Water") && !exc.GetObjectPlayerCard().Equals("Dark"))
+                else if (exc.GetTurnPlayerCard().GetCardName().Equals("Water") && !exc.GetObjectPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetObjectPlayer().GetPlayerIndex()][1] = true;
                 }
-                else if (exc.GetTurnPlayerCard().Equals("Electricity") && !exc.GetObjectPlayerCard().Equals("Dark"))
+                else if (exc.GetTurnPlayerCard().GetCardName().Equals("Electricity") && !exc.GetObjectPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetObjectPlayer().GetPlayerIndex()][2] = true;
                 }
-                else if (exc.GetTurnPlayerCard().Equals("Wind") && !exc.GetObjectPlayerCard().Equals("Dark"))
+                else if (exc.GetTurnPlayerCard().GetCardName().Equals("Wind") && !exc.GetObjectPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetObjectPlayer().GetPlayerIndex()][3] = true;
                 }
-                else if (exc.GetTurnPlayerCard().Equals("Poison") && !exc.GetObjectPlayerCard().Equals("Dark"))
+                else if (exc.GetTurnPlayerCard().GetCardName().Equals("Poison") && !exc.GetObjectPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetObjectPlayer().GetPlayerIndex()][4] = true;
                 }
@@ -376,23 +408,23 @@ public class PlayerControl : NetworkBehaviour
             }
             if (exc.GetObjectPlayer() == this && !GetUnveiled(exc.GetTurnPlayer().GetPlayerIndex()))
             {
-                if (exc.GetObjectPlayerCard().Equals("Fire") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                if (exc.GetObjectPlayerCard().GetCardName().Equals("Fire") && !exc.GetTurnPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetTurnPlayer().GetPlayerIndex()][0] = true;
                 }
-                else if (exc.GetObjectPlayerCard().Equals("Water") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                else if (exc.GetObjectPlayerCard().GetCardName().Equals("Water") && !exc.GetTurnPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetTurnPlayer().GetPlayerIndex()][1] = true;
                 }
-                else if (exc.GetObjectPlayerCard().Equals("Electricity") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                else if (exc.GetObjectPlayerCard().GetCardName().Equals("Electricity") && !exc.GetTurnPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetTurnPlayer().GetPlayerIndex()][2] = true;
                 }
-                else if (exc.GetObjectPlayerCard().Equals("Wind") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                else if (exc.GetObjectPlayerCard().GetCardName().Equals("Wind") && !exc.GetTurnPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetTurnPlayer().GetPlayerIndex()][3] = true;
                 }
-                else if (exc.GetObjectPlayerCard().Equals("Poison") && !exc.GetTurnPlayerCard().Equals("Dark"))
+                else if (exc.GetObjectPlayerCard().GetCardName().Equals("Poison") && !exc.GetTurnPlayerCard().GetCardName().Equals("Dark"))
                 {
                     table[exc.GetTurnPlayer().GetPlayerIndex()][4] = true;
                 }
@@ -435,6 +467,99 @@ public class PlayerControl : NetworkBehaviour
                 // TODO 잘 동작하는지 확인해 볼 것.
             }
         }
+    }
+
+    /// <summary>
+    /// 능력치 분배 시에 경험치를 5 소모하여 권력을 1 올리는 함수입니다.
+    /// 클라이언트에서만 호출 가능합니다.
+    /// TODO 네트워크 상에서 잘 작동하는지 확인하기
+    /// </summary>
+    public void StatAuthorityUp()
+    {
+        if (!isLocalPlayer || bm == null || bm.GetPlayerConfirmStat(GetPlayerIndex())) return;
+        if (currentAuthority < 99 && currentExperience >= 5)
+        {
+            currentAuthority++;
+            currentExperience -= 5;
+        }
+        // TODO 경험치가 부족할 때 경고 메시지 띄우기
+        // TODO 권력이 99 이상일 때 경고 메시지 띄우기
+    }
+
+    /// <summary>
+    /// 능력치 분배 시에 경험치를 5 소모하여 공격력을 1 올리는 함수입니다.
+    /// 클라이언트에서만 호출 가능합니다.
+    /// TODO 네트워크 상에서 잘 작동하는지 확인하기
+    /// </summary>
+    public void StatAttackUp()
+    {
+        if (!isLocalPlayer || bm == null || bm.GetPlayerConfirmStat(GetPlayerIndex())) return;
+        if (currentAttack < 99 && currentExperience >= 5)
+        {
+            currentAttack++;
+            currentExperience -= 5;
+        }
+        // TODO 경험치가 부족할 때 경고 메시지 띄우기
+        // TODO 공격력이 99 이상일 때 경고 메시지 띄우기
+    }
+
+    /// <summary>
+    /// 능력치 분배 시에 경험치를 (현재 정신력 + 1) 소모하여 정신력을 1 올리는 함수입니다.
+    /// 클라이언트에서만 호출 가능합니다.
+    /// TODO 네트워크 상에서 잘 작동하는지 확인하기
+    /// </summary>
+    public void StatMentalityUp()
+    {
+        if (!isLocalPlayer || bm == null || bm.GetPlayerConfirmStat(GetPlayerIndex())) return;
+        if (currentMentality < 99 && currentExperience >= currentMentality + 1)
+        {
+            currentMentality++;
+            currentExperience -= currentMentality;
+        }
+        // TODO 경험치가 부족할 때 경고 메시지 띄우기
+        // TODO 정신력이 99 이상일 때 경고 메시지 띄우기
+    }
+
+    /// <summary>
+    /// 능력치 분배 시에 경험치와 공격력, 권력, 정신력을 분배 전으로 되돌리는 함수입니다.
+    /// 클라이언트에서만 호출 가능합니다.
+    /// TODO 네트워크 상에서 잘 작동하는지 확인하기
+    /// </summary>
+    public void StatRedo()
+    {
+        if (!isLocalPlayer || bm == null || bm.GetPlayerConfirmStat(GetPlayerIndex())) return;
+        currentExperience = experience;
+        currentAttack = statAttack;
+        currentAuthority = statAuthority;
+        currentMentality = statMentality;
+    }
+
+    /// <summary>
+    /// 능력치 분배 시에 분배한 능력치를 확정짓는 함수입니다.
+    /// 클라이언트에서만 호출 가능합니다.
+    /// TODO 네트워크 상에서 잘 작동하는지 확인하기
+    /// </summary>
+    public void StatConfirm()
+    {
+        if (!isLocalPlayer || bm == null || bm.GetPlayerConfirmStat(GetPlayerIndex())) return;
+        experience = currentExperience;
+        statAttack = currentAttack;
+        statAuthority = currentAuthority;
+        statMentality = currentMentality;
+        // BattleManager에게 능력치를 확정했다는 신호 보내기
+        CmdConfirmStat();
+    }
+
+    /// <summary>
+    /// 경험치를 현재 정신력만큼 상승시키는 함수입니다.
+    /// </summary>
+    [ClientRpc]
+    public void RpcExperienceUp()
+    {
+        if (!isLocalPlayer) return;
+        currentExperience += statMentality;
+        if (currentExperience > 9999) currentExperience = 9999;
+        experience = currentExperience;
     }
 
     [ClientCallback]
@@ -638,6 +763,12 @@ public class PlayerControl : NetworkBehaviour
         bm.PlayerReady(GetPlayerIndex());
     }
 
+    [Command]
+    public void CmdConfirmStat()
+    {
+        bm.SetPlayerConfirmStat(GetPlayerIndex(), true);
+    }
+
     public void SetName(string name)
     {
         playerName = name;
@@ -767,7 +898,7 @@ public class PlayerControl : NetworkBehaviour
     /// <returns></returns>
     public bool CanRequestExchange(int playerIndex)
     {
-        if (bm == null) return false;
+        if (bm == null || playerIndex == GetPlayerIndex()) return false;
         int opponentAuthority = bm.GetPlayers()[playerIndex].GetStatAuthority();
         // 내가 상대보다 권력이 더 높으면 교환 요청 가능
         if (GetStatAuthority() >= opponentAuthority) return true;
@@ -796,23 +927,23 @@ public class PlayerControl : NetworkBehaviour
     /// </summary>
     public void SetElementSprite()
     {
-        Log("SetElementSprite " + GetPlayerElement());
+        //Log("SetElementSprite " + GetPlayerElement());
         switch (GetPlayerElement())
         {
             case 0:
-                elementSprite.sprite = Resources.Load("Elements/Fire element", typeof(Sprite)) as Sprite;
+                elementSprite.sprite = Resources.Load("Elements/Fire element2", typeof(Sprite)) as Sprite;
                 break;
             case 1:
-                elementSprite.sprite = Resources.Load("Elements/Water element", typeof(Sprite)) as Sprite;
+                elementSprite.sprite = Resources.Load("Elements/Water element2", typeof(Sprite)) as Sprite;
                 break;
             case 2:
-                elementSprite.sprite = Resources.Load("Elements/Electricity element", typeof(Sprite)) as Sprite;
+                elementSprite.sprite = Resources.Load("Elements/Electricity element2", typeof(Sprite)) as Sprite;
                 break;
             case 3:
-                elementSprite.sprite = Resources.Load("Elements/Wind element", typeof(Sprite)) as Sprite;
+                elementSprite.sprite = Resources.Load("Elements/Wind element2", typeof(Sprite)) as Sprite;
                 break;
             case 4:
-                elementSprite.sprite = Resources.Load("Elements/Poison element", typeof(Sprite)) as Sprite;
+                elementSprite.sprite = Resources.Load("Elements/Poison element2", typeof(Sprite)) as Sprite;
                 break;
             default:
                 elementSprite.sprite = Resources.Load("Elements/Unknown element", typeof(Sprite)) as Sprite;
@@ -899,6 +1030,7 @@ public class PlayerControl : NetworkBehaviour
                 break;
         }
         
+        /*
         // TODO 만약 상대 플레이어의 속성을 모르는 상태이면 그 상대가 목표임을 공개하면 안 된다.
         while (!unveiled[t[0]] || !unveiled[t[1]])
         {
@@ -908,6 +1040,8 @@ public class PlayerControl : NetworkBehaviour
             if (unveiled[t[1]]) bm.GetPlayers()[t[1]].SetHighlight(true);
             yield return null;
         }
+        */
+        // 목표인 상대에게 주황색 테두리를 씌우는 것은 RpcUnveil 함수에서 하도록 했다.
     }
     
     private void Log(string msg)
@@ -1186,6 +1320,7 @@ public class PlayerControl : NetworkBehaviour
         List<Card> myHand = bm.GetPlayerHand(this);
         List<string> decisionBox = new List<string>(); // 이 목록에 제비뽑기를 넣고 나중에 하나 뽑아 나온 행동을 한다.
         if (opponent == null) {
+            /*
             for (int i = 0; i < 5; i++)
             {
                 if (i == GetPlayerIndex()) continue;
@@ -1194,14 +1329,16 @@ public class PlayerControl : NetworkBehaviour
                 AIScoreBehavior(myHand[0].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
                 AIScoreBehavior(myHand[1].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
             }
+            */
             // TODO 랜덤 말고 인공지능으로 고치기
-            /*
+            int r;
             do
             {
-                objectTarget = bm.GetPlayers()[Random.Range(0, 5)];
-            } while (objectTarget == null || objectTarget.Equals(this));
-            */
+                r = Random.Range(0, 5);
+                objectTarget = bm.GetPlayers()[r];
+            } while (objectTarget == null || objectTarget.Equals(this) || !CanRequestExchange(r));
         }
+        /*
         else
         {
             int i = opponent.GetPlayerIndex();
@@ -1210,7 +1347,9 @@ public class PlayerControl : NetworkBehaviour
             AIScoreBehavior(myHand[0].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
             AIScoreBehavior(myHand[1].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
         }
+        */
         // TODO 랜덤 말고 인공지능으로 고치기
+        /*
         string lottery = decisionBox[Random.Range(0, decisionBox.Count)];
         bm.RpcPrintLog("lottery is " + lottery + ".");
         if (opponent == null)
@@ -1221,7 +1360,8 @@ public class PlayerControl : NetworkBehaviour
         if (myHand[0].GetCardName() == lottery) playCardAI = myHand[0];
         else if (myHand[1].GetCardName() == lottery) playCardAI = myHand[1];
         else Debug.LogError("lottery is invalid.");
-        // playCardAI = myHand[Random.Range(0, 2)];
+        */
+        playCardAI = myHand[Random.Range(0, 2)];
     }
 
     /// <summary>

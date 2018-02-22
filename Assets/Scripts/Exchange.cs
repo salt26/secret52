@@ -226,14 +226,16 @@ public class Exchange : NetworkBehaviour {
         if (turnPlayerCard.GetCardName() == "Light")
         {
             turnPlayer.Lighted();
-            // TODO 오브젝트 플레이어의 속성을 턴 플레이어에게 공개
-            turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
+            // 오브젝트 플레이어의 속성을 턴 플레이어에게 공개
+            // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+            //turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
         }
         if (objectPlayerCard.GetCardName() == "Light")
         {
             objectPlayer.Lighted();
-            // TODO 턴 플레이어의 속성을 오브젝트 플레이어에게 공개
-            objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
+            // 턴 플레이어의 속성을 오브젝트 플레이어에게 공개
+            // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+            //objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
         }
 
         // 어둠 효과 처리
@@ -273,7 +275,9 @@ public class Exchange : NetworkBehaviour {
             if (objectPlayer.GetPlayerElement() == 0)
             {
                 objectPlayer.Damaged(2);
-                turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
+
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
             }
             else
                 objectPlayer.Damaged(turnPlayer.GetStatAttack());
@@ -284,7 +288,9 @@ public class Exchange : NetworkBehaviour {
             if (turnPlayer.GetPlayerElement() == 0)
             {
                 turnPlayer.Damaged(2);
-                objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
+
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
             }
             else
                 turnPlayer.Damaged(objectPlayer.GetStatAttack());
@@ -297,7 +303,9 @@ public class Exchange : NetworkBehaviour {
             if (objectPlayer.GetPlayerElement() == 1)
             {
                 objectPlayer.Damaged(2);
-                turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
+                
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
             }
             else
                 objectPlayer.Damaged(turnPlayer.GetStatAttack());
@@ -308,7 +316,9 @@ public class Exchange : NetworkBehaviour {
             if (turnPlayer.GetPlayerElement() == 1)
             {
                 turnPlayer.Damaged(2);
-                objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
+
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
             }
             else
                 turnPlayer.Damaged(objectPlayer.GetStatAttack());
@@ -321,7 +331,9 @@ public class Exchange : NetworkBehaviour {
             if (objectPlayer.GetPlayerElement() == 2)
             {
                 objectPlayer.Damaged(2);
-                turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
+                
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
             }
             else
                 objectPlayer.Damaged(turnPlayer.GetStatAttack());
@@ -332,7 +344,9 @@ public class Exchange : NetworkBehaviour {
             if (turnPlayer.GetPlayerElement() == 2)
             {
                 turnPlayer.Damaged(2);
-                objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
+
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
             }
             else
                 turnPlayer.Damaged(objectPlayer.GetStatAttack());
@@ -345,7 +359,9 @@ public class Exchange : NetworkBehaviour {
             if (objectPlayer.GetPlayerElement() == 3)
             {
                 objectPlayer.Damaged(2);
-                turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
+
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
             }
             else
                 objectPlayer.Damaged(turnPlayer.GetStatAttack());
@@ -356,7 +372,9 @@ public class Exchange : NetworkBehaviour {
             if (turnPlayer.GetPlayerElement() == 3)
             {
                 turnPlayer.Damaged(2);
-                objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
+
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
             }
             else
                 turnPlayer.Damaged(objectPlayer.GetStatAttack());
@@ -368,7 +386,9 @@ public class Exchange : NetworkBehaviour {
             // 상대가 독의 마법사이면 피해 감소
             if (objectPlayer.GetPlayerElement() == 4) { 
                 objectPlayer.Damaged(2);
-                turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
+
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //turnPlayer.Unveil(objectPlayer.GetPlayerIndex());
             }
             else
                 objectPlayer.Damaged(turnPlayer.GetStatAttack());
@@ -379,7 +399,9 @@ public class Exchange : NetworkBehaviour {
             if (turnPlayer.GetPlayerElement() == 4)
             {
                 turnPlayer.Damaged(2);
-                objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
+
+                // -> PlayerControl.cs의 UnveilFromExchangeLog 함수에서 처리
+                //objectPlayer.Unveil(turnPlayer.GetPlayerIndex());
             }
             else
                 turnPlayer.Damaged(objectPlayer.GetStatAttack());

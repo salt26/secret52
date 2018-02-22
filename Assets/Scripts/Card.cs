@@ -101,8 +101,9 @@ public class Card : NetworkBehaviour {
         Quaternion br;
         float t = Time.time;
 
-        // 내가 낸 카드가 공격 카드이면 앞면에서 뒷면으로 뒤집습니다.
-        if (start / 2 == localPlayer.GetPlayerIndex() && GetCardCode() < 5)
+        // 내가 낸 카드를 앞면에서 뒷면으로 뒤집습니다.
+        // 이동하는 카드가 공격 카드가 아니어도 어디서든지 앞면에서 뒷면으로 뒤집습니다.
+        if (start / 2 == localPlayer.GetPlayerIndex() || (start != 10 && GetCardCode() >= 5))
         {
             t = Time.time;
             fr = GetRotationFront(start);
@@ -142,20 +143,9 @@ public class Card : NetworkBehaviour {
         }
         GetComponent<Transform>().rotation = dr;
 
-        // 내가 받은 카드가 공격 카드이면 뒷면에서 앞면으로 뒤집습니다.
-        if (dest / 2 == localPlayer.GetPlayerIndex() && GetCardCode() < 5)
-        {
-            t = Time.time;
-            fr = GetRotationFront(dest);
-            br = GetRotationBack(dest);
-            while (Time.time < t + 1f)
-            {
-                GetComponent<Transform>().rotation = Quaternion.Slerp(br, fr, (Time.time - t) / 1f);
-                yield return null;
-            }
-            GetComponent<Transform>().rotation = fr;
-        }
-        else if (start == 10 && GetCardCode() >= 5)
+        // 내가 받은 카드를 뒷면에서 앞면으로 뒤집습니다.
+        // 이동하는 카드가 공격 카드가 아니어도 어디서든지 뒷면에서 앞면으로 뒤집습니다.
+        if (dest / 2 == localPlayer.GetPlayerIndex() || GetCardCode() >= 5)
         {
             t = Time.time;
             fr = GetRotationFront(dest);
