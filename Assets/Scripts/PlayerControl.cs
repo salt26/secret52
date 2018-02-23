@@ -41,22 +41,27 @@ public class PlayerControl : NetworkBehaviour
     [SerializeField] private GameObject playerCamera;
 
     private static BattleManager bm;
+    private static CardDatabase cd;
     //private static Alert alert;
 
     private GameObject Border;
     private SpriteRenderer Face;
     private GameObject targetElementImage1;
     private GameObject targetElementImage2;
+    private GameObject targetElementText;
+    private GameObject targetElementBackground;
     private GameObject cannotRequestTextB;
     private GameObject cannotRequestTextW1;
     private GameObject cannotRequestTextW2;
     private SpriteRenderer elementSprite;
+    private TooltipUI tooltip;
 
     public GameObject Ice;
     public GameObject targetMark;
     public GameObject healthText;
     public GameObject attackUIText;
     public GameObject authorityUIText;
+    public GameObject tooltipBox;
     private bool isMarked; //마크가 되었는지 여부
     private bool isPlayingCannotRequest;
 
@@ -77,10 +82,13 @@ public class PlayerControl : NetworkBehaviour
         Face = GetComponentsInChildren<SpriteRenderer>()[0];
         targetElementImage1 = GameObject.Find("TargetElementImage1");
         targetElementImage2 = GameObject.Find("TargetElementImage2");
+        targetElementText = GameObject.Find("TargetElementText");
+        targetElementBackground = GameObject.Find("TargetElementBackground");
         cannotRequestTextB = GameObject.Find("CannotRequestTextB");
         cannotRequestTextW1 = GameObject.Find("CannotRequestTextW1");
         cannotRequestTextW2 = GameObject.Find("CannotRequestTextW2");
         elementSprite = GetComponentsInChildren<SpriteRenderer>()[2];   // Player 프리팹의 하이어러키에서 스프라이트 순서 중요!
+        tooltip = null;
         Border.SetActive(false);
         currentHealth = maxHealth;
         displayedHealth = currentHealth;
@@ -180,6 +188,10 @@ public class PlayerControl : NetworkBehaviour
             if (isLocalPlayer)
                 CmdReady();
         }
+        if (cd == null)
+        {
+            cd = CardDatabase.cardDatabase;
+        }
         /*
         if (isLocalPlayer && Input.GetMouseButtonDown(1))
         {
@@ -221,6 +233,58 @@ public class PlayerControl : NetworkBehaviour
         healthText.GetComponent<Text>().text = displayedHealth.ToString();
         attackUIText.GetComponent<Text>().text = statAttack.ToString();
         authorityUIText.GetComponent<Text>().text = statAuthority.ToString();
+
+        /* 작은 카드의 툴팁을 보여주기 위한 코드입니다. */
+        // 앞면인 작은 카드를 클릭하고 있는 동안에 카드 이름과 설명을 포함한 툴팁이 나타납니다.
+        // 뒷면인 작은 카드를 클릭하고 있는 동안에 비공개 공격 카드 설명을 포함한 툴팁이 나타납니다.
+        if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging)
+        {
+            List<Card> hand = bm.GetPlayerHand(this);
+            Ray ray = GetComponentInChildren<Camera>().ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 9)))
+            {
+                //Log("Click " + hit.collider.name + ".");
+                Debug.DrawLine(ray.origin, hit.point, Color.yellow, 3f);
+                if (hit.collider.gameObject.GetComponentInParent<Card>() != null
+                    && (hit.collider.gameObject.GetComponentInParent<Card>().Equals(hand[0])
+                    || hit.collider.gameObject.GetComponentInParent<Card>().Equals(hand[1])
+                    || hit.collider.gameObject.GetComponentInParent<Card>().GetCardCode() >= 5)
+                    && Alert.alert != null && cd != null && tooltip == null)
+                {
+                    Card c = hit.collider.gameObject.GetComponentInParent<Card>();
+                    GameObject t = Instantiate(tooltipBox, Alert.alert.gameObject.transform);   // Alert.alert.gameObject는 메인 Canvas
+                    tooltip = t.GetComponent<TooltipUI>();
+                    tooltip.SetText(cd.GetCardInfo(c).GetNameText(),
+                        cd.GetCardInfo(c).GetColor(), cd.GetCardInfo(c).GetDetailText());
+                    tooltip.Appear();
+                }
+                else if (hit.collider.gameObject.GetComponentInParent<Card>() != null
+                    && Alert.alert != null && cd != null && tooltip == null)
+                {
+                    GameObject t = Instantiate(tooltipBox, Alert.alert.gameObject.transform);   // Alert.alert.gameObject는 메인 Canvas
+                    tooltip = t.GetComponent<TooltipUI>();
+                    tooltip.SetText("받을 때 피해를 받는 공격 카드입니다. 상대 손에 있을 때는 공개되지 않습니다.");
+                    tooltip.Appear();
+                }
+                else if ((hit.collider.gameObject.GetComponentInParent<Card>() == null
+                    /*|| !(hit.collider.gameObject.GetComponentInParent<Card>().Equals(hand[0])
+                    || hit.collider.gameObject.GetComponentInParent<Card>().Equals(hand[1])
+                    || hit.collider.gameObject.GetComponentInParent<Card>().GetCardCode() >= 5)*/) && tooltip != null)
+                {
+                    // 마우스로 클릭하여 닿은 것이 작은 카드가 아닌 경우, 상대가 들고 있는 공격 카드인 경우
+                    tooltip.Disappear();
+                }
+            }
+            else if (tooltip != null)   // 마우스를 클릭했지만 클릭한 지점이 아무 것과도 닿지 않은 경우
+            {
+                tooltip.Disappear();
+            }
+        }
+        else if (isLocalPlayer && tooltip != null)  // 클릭하지 않고 있는 경우, 큰 카드를 드래그중인 경우, 두 곳 이상을 동시 터치한 경우
+        {
+            tooltip.Disappear();
+        }
 
         if (isServer && isAI && bm.GetTurnStep() == 2 && bm.GetTurnPlayer().Equals(this) && !isThinking)
         {
@@ -350,6 +414,7 @@ public class PlayerControl : NetworkBehaviour
         List<Exchange> exchanges = bm.GetExchanges();
         List<int> unknowns = GetUnknownElements();
         List<List<bool>> table = new List<List<bool>>();
+        bool again = false; // 간접적으로 누군가의 속성이 밝혀지면, 한 번 더 이 함수를 실행해서 새로운 누군가의 속성이 밝혀질 수 있다.
         for (int i = 0; i < 5; i++)
         {
             List<bool> row = new List<bool>();
@@ -444,6 +509,7 @@ public class PlayerControl : NetworkBehaviour
             if (count >= unknowns.Count - 1)
             {
                 Unveil(i);
+                again = true;
                 // TODO 잘 동작하는지 확인해 볼 것.
             }
         }
@@ -464,9 +530,12 @@ public class PlayerControl : NetworkBehaviour
             if (count2 >= count1 - 1 && pi != -1)
             {
                 Unveil(pi);
+                again = true;
                 // TODO 잘 동작하는지 확인해 볼 것.
             }
         }
+
+        if (again) UnveilFromExchangeLog();
     }
 
     /// <summary>
@@ -693,9 +762,9 @@ public class PlayerControl : NetworkBehaviour
     }
     */
 
-    /// <summary>
-    /// 선택한 대상에게 교환 요청을 거는 것을 확정짓는 함수입니다. turnStep이 2일 때만 작동합니다.
-    /// </summary>
+                /// <summary>
+                /// 선택한 대상에게 교환 요청을 거는 것을 확정짓는 함수입니다. turnStep이 2일 때만 작동합니다.
+                /// </summary>
     [ClientCallback]
     public void DecideClicked()
     {
@@ -1029,7 +1098,37 @@ public class PlayerControl : NetworkBehaviour
                 targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Poison", typeof(Texture)) as Texture;
                 break;
         }
+
+        yield return new WaitForSeconds(2f);
+        int frame = 64;
+        for (int i = 0; i < frame; i++)
+        {
+            targetElementImage1.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.22f, 0.52f), new Vector2(0.02f, 0.94f), i / (float)frame);
+            targetElementImage1.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.46f, 0.64f), new Vector2(0.12f, 0.99f), i / (float)frame);
+            
+            targetElementImage2.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.54f, 0.52f), new Vector2(0.14f, 0.94f), i / (float)frame);
+            targetElementImage2.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.78f, 0.64f), new Vector2(0.24f, 0.99f), i / (float)frame);
+
+            targetElementText.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.26f, 0.46f), new Vector2(0.26f, 0.94f), i / (float)frame);
+            targetElementText.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.74f, 0.51f), new Vector2(0.74f, 0.99f), i / (float)frame);
+
+            targetElementBackground.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.2f, 0.46f), new Vector2(0f, 0.93f), i / (float)frame);
+            targetElementBackground.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.8f, 0.65f), new Vector2(0.77f, 1f), i / (float)frame);
+            yield return new WaitForFixedUpdate();
+        }
+
+        targetElementImage1.GetComponent<RectTransform>().anchorMin = new Vector2(0.02f, 0.94f);
+        targetElementImage1.GetComponent<RectTransform>().anchorMax = new Vector2(0.12f, 0.99f);
+
+        targetElementImage2.GetComponent<RectTransform>().anchorMin = new Vector2(0.14f, 0.94f);
+        targetElementImage2.GetComponent<RectTransform>().anchorMax = new Vector2(0.24f, 0.99f);
+
+        targetElementText.GetComponent<RectTransform>().anchorMin = new Vector2(0.26f, 0.94f);
+        targetElementText.GetComponent<RectTransform>().anchorMax = new Vector2(0.74f, 0.99f);
         
+        targetElementBackground.GetComponent<RectTransform>().anchorMin = new Vector2(0f, 0.93f);
+        targetElementBackground.GetComponent<RectTransform>().anchorMax = new Vector2(0.77f, 1f);
+
         /*
         // TODO 만약 상대 플레이어의 속성을 모르는 상태이면 그 상대가 목표임을 공개하면 안 된다.
         while (!unveiled[t[0]] || !unveiled[t[1]])

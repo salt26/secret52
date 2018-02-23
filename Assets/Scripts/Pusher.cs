@@ -49,6 +49,7 @@ public class Pusher : MonoBehaviour
         moved = false;
         selected = false;
         freezed = false;
+        ExchangeComplete = false;
         opponentPlayerCardCode = -1;
     }
 
@@ -141,7 +142,7 @@ public class Pusher : MonoBehaviour
 
     public IEnumerator AfterSmallMove()
     {
-        while (!ExchangeComplete)
+        while (!ExchangeComplete || bm == null || bm.GetTurnStep() < 6 || bm.GetTurnStep() > 7)
         {
             yield return null;
         }
@@ -199,12 +200,11 @@ public class Pusher : MonoBehaviour
         float x = CardPosition.y;
 
         float t = Time.time;
-        while ((Time.time - t) < ((2f / 3f) * (s * 3 / 2 - x) / (s * 11 / 16)))
+        while ((Time.time - t) < ((2f / 3f) * (s * 3 / 2 - x) / (s * 8 / 16)))
         {
-            GameObject.FindGameObjectWithTag(LR).transform.position = Vector3.Lerp(CardPosition, det, (Time.time - t) / ((2f / 3f) * (s * 3 / 2 - x) / (s * 11 / 16)));
+            GameObject.FindGameObjectWithTag(LR).transform.position = Vector3.Lerp(CardPosition, det, (Time.time - t) / ((2f / 3f) * (s * 3 / 2 - x) / (s * 8 / 16)));
             yield return null;
         }
-        GameObject.FindGameObjectWithTag(LR).transform.position = det;
     }
 
     public void MoveCardDown(Vector3 start, Vector3 dest, string LF)

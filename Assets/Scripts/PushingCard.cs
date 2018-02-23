@@ -5,13 +5,17 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.Networking;
 
-public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerEnterHandler, IPointerExitHandler
 {
     private static BattleManager bm;
+    private static CardDatabase cd;
 
     private Pusher pusher;
 
     static public PlayerControl localPlayer = null;
+
+    public GameObject tooltipBox;
+    private TooltipUI tooltip;
 
     private Vector3 cardx;
     private Vector3 cardOriginal;
@@ -22,6 +26,8 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     private void Awake()
     {
         bm = BattleManager.bm;
+        cd = CardDatabase.cardDatabase;
+        tooltip = null;
     }
 
     private void Start()
@@ -39,6 +45,11 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         else if (bm == null)
         {
             bm = BattleManager.bm;
+            return;
+        }
+        else if (cd == null)
+        {
+            cd = CardDatabase.cardDatabase;
             return;
         }
         else if (bm.GetTurnStep() <= 0)
@@ -95,7 +106,7 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void OnEndDrag(PointerEventData eventData)
     {
         localPlayer.SetCardDragging(false);
-        if (this.transform.position.y >= Screen.height * 8 / 16)
+        if (transform.position.y >= Screen.height * 8 / 16)
         {
             if (CompareTag("Left"))
             {
@@ -117,6 +128,33 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         {
             transform.position = cardOriginal;
         }
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (cd == null || tooltip != null) return;
+        if (CompareTag("Left") && cardL != null && transform.position.y == cardOriginal.y)
+        {
+            GameObject t = Instantiate(tooltipBox, GetComponentInParent<Canvas>().gameObject.transform);
+            tooltip = t.GetComponent<TooltipUI>();
+            tooltip.SetText(cd.GetCardInfo(cardL).GetNameText(),
+                cd.GetCardInfo(cardL).GetColor(), cd.GetCardInfo(cardL).GetDetailText());
+            tooltip.Appear();
+        }
+        else if (CompareTag("Right") && cardR != null && transform.position.y == cardOriginal.y)
+        {
+            GameObject t = Instantiate(tooltipBox, GetComponentInParent<Canvas>().gameObject.transform);
+            tooltip = t.GetComponent<TooltipUI>();
+            tooltip.SetText(cd.GetCardInfo(cardR).GetNameText(),
+                cd.GetCardInfo(cardR).GetColor(), cd.GetCardInfo(cardR).GetDetailText());
+            tooltip.Appear();
+        }
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        if (tooltip == null) return;
+        tooltip.Disappear();
     }
 }
 
