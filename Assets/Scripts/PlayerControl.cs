@@ -50,6 +50,9 @@ public class PlayerControl : NetworkBehaviour
     private GameObject targetElementImage2;
     private GameObject targetElementText;
     private GameObject targetElementBackground;
+    private GameObject myElementImage;
+    private GameObject myElementText1;
+    private GameObject myElementText2;
     private GameObject cannotRequestTextB;
     private GameObject cannotRequestTextW1;
     private GameObject cannotRequestTextW2;
@@ -84,6 +87,9 @@ public class PlayerControl : NetworkBehaviour
         targetElementImage2 = GameObject.Find("TargetElementImage2");
         targetElementText = GameObject.Find("TargetElementText");
         targetElementBackground = GameObject.Find("TargetElementBackground");
+        myElementImage = GameObject.Find("MyElementImage");
+        myElementText1 = GameObject.Find("MyElementText1");
+        myElementText2 = GameObject.Find("MyElementText2");
         cannotRequestTextB = GameObject.Find("CannotRequestTextB");
         cannotRequestTextW1 = GameObject.Find("CannotRequestTextW1");
         cannotRequestTextW2 = GameObject.Find("CannotRequestTextW2");
@@ -323,7 +329,7 @@ public class PlayerControl : NetworkBehaviour
                         tooltip.SetText(p.GetName(), p.color, "체력: " + p.GetHealth() + "/" + p.maxHealth + "\n공격력: " + p.GetStatAttack() +
                             "\n권력: " + p.GetStatAuthority() + "\n속성: 알 수 없음");
                     }
-                    tooltip.SetPosition(0.01f, 0.321f, 0.32f, 0.47f);
+                    tooltip.SetPosition(0.01f, 0.321f, 0.31f, 0.47f);
                     tooltip.Appear();
                 }
                 else if (hit.collider.gameObject.GetComponent<PlayerControl>() == null && tooltip != null)
@@ -1173,73 +1179,127 @@ public class PlayerControl : NetworkBehaviour
 
         SetElementSprite(); // 여기서 자신의 속성을 표시하게 함
 
+        switch (bm.GetPlayerElement(GetPlayerIndex()))
+        {
+            case 0:
+                myElementImage.GetComponent<RawImage>().texture = Resources.Load("Elements/Fire element", typeof(Texture)) as Texture;
+                break;
+            case 1:
+                myElementImage.GetComponent<RawImage>().texture = Resources.Load("Elements/Water element2", typeof(Texture)) as Texture;
+                break;
+            case 2:
+                myElementImage.GetComponent<RawImage>().texture = Resources.Load("Elements/Electricity element", typeof(Texture)) as Texture;
+                break;
+            case 3:
+                myElementImage.GetComponent<RawImage>().texture = Resources.Load("Elements/Wind element", typeof(Texture)) as Texture;
+                break;
+            case 4:
+                myElementImage.GetComponent<RawImage>().texture = Resources.Load("Elements/Poison element2", typeof(Texture)) as Texture;
+                break;
+        }
+
+        yield return new WaitForSeconds(2f);
+        int frame2 = 32;
+        Vector3 elemPos = GetComponentInChildren<Camera>().WorldToViewportPoint(
+            elementSprite.gameObject.transform.position);
+        for (int i = 0; i < frame2; i++)
+        {
+            myElementImage.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.42f, 0.57f), new Vector2(elemPos.x - 0.08f, elemPos.y - 0.045f), i / (float)frame2);
+            myElementImage.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.58f, 0.66f), new Vector2(elemPos.x + 0.08f, elemPos.y + 0.045f), i / (float)frame2);
+            myElementImage.GetComponent<RectTransform>().rotation = Quaternion.Lerp(Quaternion.identity, Quaternion.Euler(0f, 0f, 180f), i / (float)frame2);
+            
+            myElementText1.GetComponent<Text>().color = Color.Lerp(Color.white, new Color(1f, 1f, 1f, 0f), i / (float)frame2);
+            myElementText2.GetComponent<Text>().color = Color.Lerp(Color.white, new Color(1f, 1f, 1f, 0f), i / (float)frame2);
+            yield return new WaitForFixedUpdate();
+        }
+        myElementText1.SetActive(false);
+        myElementText2.SetActive(false);
+
         switch (bm.GetPlayerElement(t[0]))
         {
             case 0:
-                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Fire", typeof(Texture)) as Texture;
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Fire element", typeof(Texture)) as Texture;
                 break;
             case 1:
-                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Water", typeof(Texture)) as Texture;
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Water element2", typeof(Texture)) as Texture;
                 break;
             case 2:
-                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Electricity", typeof(Texture)) as Texture;
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Electricity element", typeof(Texture)) as Texture;
                 break;
             case 3:
-                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Wind", typeof(Texture)) as Texture;
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Wind element", typeof(Texture)) as Texture;
                 break;
             case 4:
-                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Poison", typeof(Texture)) as Texture;
+                targetElementImage1.GetComponent<RawImage>().texture = Resources.Load("Elements/Poison element2", typeof(Texture)) as Texture;
                 break;
         }
 
         switch (bm.GetPlayerElement(t[1]))
         {
             case 0:
-                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Fire", typeof(Texture)) as Texture;
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Fire element", typeof(Texture)) as Texture;
                 break;
             case 1:
-                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Water", typeof(Texture)) as Texture;
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Water element2", typeof(Texture)) as Texture;
                 break;
             case 2:
-                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Electricity", typeof(Texture)) as Texture;
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Electricity element", typeof(Texture)) as Texture;
                 break;
             case 3:
-                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Wind", typeof(Texture)) as Texture;
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Wind element", typeof(Texture)) as Texture;
                 break;
             case 4:
-                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Poison", typeof(Texture)) as Texture;
+                targetElementImage2.GetComponent<RawImage>().texture = Resources.Load("Elements/Poison element2", typeof(Texture)) as Texture;
                 break;
         }
+
+        frame2 = 16;
+        for (int i = 0; i < frame2; i++)
+        {
+            targetElementImage1.GetComponent<RawImage>().color = Color.Lerp(new Color(1f, 1f, 1f, 0f), Color.white, i / (float)frame2);
+            targetElementImage2.GetComponent<RawImage>().color = Color.Lerp(new Color(1f, 1f, 1f, 0f), Color.white, i / (float)frame2);
+            targetElementText.GetComponent<Text>().color = Color.Lerp(new Color(1f, 1f, 1f, 0f), Color.white, i / (float)frame2);
+
+            myElementImage.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(elemPos.x - 0.08f, elemPos.y - 0.045f), new Vector2(elemPos.x, elemPos.y), i / (float)frame2);
+            myElementImage.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(elemPos.x + 0.08f, elemPos.y + 0.045f), new Vector2(elemPos.x, elemPos.y), i / (float)frame2);
+            myElementImage.GetComponent<RawImage>().color = Color.Lerp(Color.white, new Color(1f, 1f, 1f, 0f), i / (float)frame2);
+            yield return new WaitForFixedUpdate();
+        }
+        myElementImage.SetActive(false);
+
+        targetElementImage1.GetComponent<RawImage>().color = Color.white;
+        targetElementImage2.GetComponent<RawImage>().color = Color.white;
+        targetElementText.GetComponent<Text>().color = Color.white;
 
         yield return new WaitForSeconds(2f);
         int frame = 64;
         for (int i = 0; i < frame; i++)
         {
-            targetElementImage1.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.22f, 0.52f), new Vector2(0.02f, 0.94f), i / (float)frame);
-            targetElementImage1.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.46f, 0.64f), new Vector2(0.12f, 0.99f), i / (float)frame);
+            targetElementImage1.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.25f, 0.58f), new Vector2(0.04f, 0.93f), i / (float)frame);
+            targetElementImage1.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.46f, 0.7f), new Vector2(0.13f, 0.98f), i / (float)frame);
             
-            targetElementImage2.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.54f, 0.52f), new Vector2(0.14f, 0.94f), i / (float)frame);
-            targetElementImage2.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.78f, 0.64f), new Vector2(0.24f, 0.99f), i / (float)frame);
+            targetElementImage2.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.54f, 0.58f), new Vector2(0.14f, 0.93f), i / (float)frame);
+            targetElementImage2.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.75f, 0.7f), new Vector2(0.23f, 0.98f), i / (float)frame);
 
-            targetElementText.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.26f, 0.46f), new Vector2(0.26f, 0.94f), i / (float)frame);
-            targetElementText.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.74f, 0.51f), new Vector2(0.74f, 0.99f), i / (float)frame);
+            targetElementText.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.26f, 0.52f), new Vector2(0.26f, 0.93f), i / (float)frame);
+            targetElementText.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.74f, 0.57f), new Vector2(0.74f, 0.98f), i / (float)frame);
 
-            targetElementBackground.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.2f, 0.46f), new Vector2(0f, 0.93f), i / (float)frame);
-            targetElementBackground.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.8f, 0.65f), new Vector2(0.77f, 1f), i / (float)frame);
+            targetElementBackground.GetComponent<RectTransform>().anchorMin = Vector2.Lerp(new Vector2(0.23f, 0.52f), new Vector2(0.02f, 0.92f), i / (float)frame);
+            targetElementBackground.GetComponent<RectTransform>().anchorMax = Vector2.Lerp(new Vector2(0.77f, 0.71f), new Vector2(0.77f, 0.99f), i / (float)frame);
             yield return new WaitForFixedUpdate();
         }
 
-        targetElementImage1.GetComponent<RectTransform>().anchorMin = new Vector2(0.02f, 0.94f);
-        targetElementImage1.GetComponent<RectTransform>().anchorMax = new Vector2(0.12f, 0.99f);
+        targetElementImage1.GetComponent<RectTransform>().anchorMin = new Vector2(0.04f, 0.93f);
+        targetElementImage1.GetComponent<RectTransform>().anchorMax = new Vector2(0.13f, 0.98f);
 
-        targetElementImage2.GetComponent<RectTransform>().anchorMin = new Vector2(0.14f, 0.94f);
-        targetElementImage2.GetComponent<RectTransform>().anchorMax = new Vector2(0.24f, 0.99f);
+        targetElementImage2.GetComponent<RectTransform>().anchorMin = new Vector2(0.15f, 0.93f);
+        targetElementImage2.GetComponent<RectTransform>().anchorMax = new Vector2(0.24f, 0.98f);
 
-        targetElementText.GetComponent<RectTransform>().anchorMin = new Vector2(0.26f, 0.94f);
-        targetElementText.GetComponent<RectTransform>().anchorMax = new Vector2(0.74f, 0.99f);
+        targetElementText.GetComponent<RectTransform>().anchorMin = new Vector2(0.26f, 0.93f);
+        targetElementText.GetComponent<RectTransform>().anchorMax = new Vector2(0.74f, 0.98f);
         
-        targetElementBackground.GetComponent<RectTransform>().anchorMin = new Vector2(0f, 0.93f);
-        targetElementBackground.GetComponent<RectTransform>().anchorMax = new Vector2(0.77f, 1f);
+        targetElementBackground.GetComponent<RectTransform>().anchorMin = new Vector2(0.02f, 0.92f);
+        targetElementBackground.GetComponent<RectTransform>().anchorMax = new Vector2(0.77f, 0.99f);
 
         /*
         // TODO 만약 상대 플레이어의 속성을 모르는 상태이면 그 상대가 목표임을 공개하면 안 된다.

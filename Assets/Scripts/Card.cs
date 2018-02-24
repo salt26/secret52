@@ -115,6 +115,15 @@ public class Card : NetworkBehaviour {
             }
             GetComponent<Transform>().rotation = br;
         }
+        // 다른 카드가 뒤집히는 동안 기다립니다.
+        else if (start != 10 && !(start / 2 != localPlayer.GetPlayerIndex() && dest / 2 != localPlayer.GetPlayerIndex() && GetCardCode() < 5))
+        {
+            t = Time.time;
+            while (Time.time < t + 1f)
+            {
+                yield return null;
+            }
+        }
 
         // 움직일 방향으로 회전입니다.
         t = Time.time;
@@ -156,6 +165,15 @@ public class Card : NetworkBehaviour {
                 yield return null;
             }
             GetComponent<Transform>().rotation = fr;
+        }
+        // 다른 카드가 뒤집히는 동안 기다립니다.
+        else if (!(start / 2 != localPlayer.GetPlayerIndex() && dest / 2 != localPlayer.GetPlayerIndex() && GetCardCode() < 5))
+        {
+            t = Time.time;
+            while (Time.time < t + 1f)
+            {
+                yield return null;
+            }
         }
 
         // 교환을 종료합니다. (turnStep이 9일 때만 실행됨)

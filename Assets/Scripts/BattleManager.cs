@@ -213,7 +213,7 @@ public class BattleManager : NetworkBehaviour
         //RpcPrintLog("" + cv);
         RpcSetCardIndex(cv);
 
-        yield return new WaitForSeconds(2f);
+        yield return new WaitForSeconds(5.4f);
 
         for (int i = 0; i < 10; i++)
         {
