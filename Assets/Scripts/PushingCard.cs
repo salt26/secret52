@@ -155,6 +155,7 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     {
         if (tooltip == null) return;
         tooltip.Disappear();
+        tooltip = null;
     }
 }
 

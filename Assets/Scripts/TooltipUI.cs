@@ -20,8 +20,8 @@ public class TooltipUI : MonoBehaviour {
         //border = GetComponentInChildren<Image>();
         border.color = new Color(1f, 0.643f, 0f, 0f);
         rect = GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.01f, 0.32f);
-        rect.anchorMax = new Vector2(0.99f, 0.44f);
+        rect.anchorMin = new Vector2(0.01f, 0.321f);
+        rect.anchorMax = new Vector2(0.99f, 0.43f);
     }
 
     public void SetText(string body)

@@ -234,14 +234,16 @@ public class PlayerControl : NetworkBehaviour
         attackUIText.GetComponent<Text>().text = statAttack.ToString();
         authorityUIText.GetComponent<Text>().text = statAuthority.ToString();
 
-        /* 작은 카드의 툴팁을 보여주기 위한 코드입니다. */
-        // 앞면인 작은 카드를 클릭하고 있는 동안에 카드 이름과 설명을 포함한 툴팁이 나타납니다.
-        // 뒷면인 작은 카드를 클릭하고 있는 동안에 비공개 공격 카드 설명을 포함한 툴팁이 나타납니다.
+        /* 툴팁을 표시하기 위한 코드입니다. */
         if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging)
         {
             List<Card> hand = bm.GetPlayerHand(this);
             Ray ray = GetComponentInChildren<Camera>().ScreenPointToRay(Input.mousePosition);
             RaycastHit hit;
+
+            // 작은 카드의 툴팁을 보여주기 위한 코드입니다.
+            // 앞면인 작은 카드를 클릭하고 있는 동안에 카드 이름과 설명을 포함한 툴팁이 나타납니다.
+            // 뒷면인 작은 카드를 클릭하고 있는 동안에 비공개 공격 카드 설명을 포함한 툴팁이 나타납니다.
             if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 9)))
             {
                 //Log("Click " + hit.collider.name + ".");
@@ -274,16 +276,126 @@ public class PlayerControl : NetworkBehaviour
                 {
                     // 마우스로 클릭하여 닿은 것이 작은 카드가 아닌 경우, 상대가 들고 있는 공격 카드인 경우
                     tooltip.Disappear();
+                    tooltip = null;
+                }
+            }
+            // 플레이어 툴팁을 보여주기 위한 코드입니다.
+            // 플레이어 이름, 체력, 공격력, 권력, 공개된 속성을 보여줍니다.
+            else if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 8)))
+            {
+                //Log("Click " + hit.collider.name + " / " + hit.point + ".");
+                Debug.DrawLine(ray.origin, hit.point, Color.red, 3f);
+                if (hit.collider.gameObject.GetComponent<PlayerControl>() != null
+                    && Alert.alert != null && tooltip == null)
+                {
+                    PlayerControl p = hit.collider.gameObject.GetComponent<PlayerControl>();
+                    GameObject t = Instantiate(tooltipBox, Alert.alert.gameObject.transform);   // Alert.alert.gameObject는 메인 Canvas
+                    tooltip = t.GetComponent<TooltipUI>();
+                    if (unveiled[p.GetPlayerIndex()])
+                    {
+                        string elem;
+                        switch (p.GetPlayerElement())
+                        {
+                            case 0:
+                                elem = "불";
+                                break;
+                            case 1:
+                                elem = "물";
+                                break;
+                            case 2:
+                                elem = "전기";
+                                break;
+                            case 3:
+                                elem = "바람";
+                                break;
+                            case 4:
+                                elem = "독";
+                                break;
+                            default:
+                                elem = "알 수 없음";
+                                break;
+                        }
+                        tooltip.SetText(p.GetName(), p.color, "체력: " + p.GetHealth() + "/" + p.maxHealth + "\n공격력: " + p.GetStatAttack() +
+                            "\n권력: " + p.GetStatAuthority() + "\n속성: " + elem);
+                    }
+                    else
+                    {
+                        tooltip.SetText(p.GetName(), p.color, "체력: " + p.GetHealth() + "/" + p.maxHealth + "\n공격력: " + p.GetStatAttack() +
+                            "\n권력: " + p.GetStatAuthority() + "\n속성: 알 수 없음");
+                    }
+                    tooltip.SetPosition(0.01f, 0.321f, 0.32f, 0.47f);
+                    tooltip.Appear();
+                }
+                else if (hit.collider.gameObject.GetComponent<PlayerControl>() == null && tooltip != null)
+                {
+                    //Debug.LogWarning("This isn't PlayerControl.");
+                    tooltip.Disappear();
+                    tooltip = null;
+                }
+            }
+            // 체력 툴팁을 보여주기 위한 코드입니다.
+            else if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 10)))
+            {
+                //Log("Click " + hit.collider.name + " / " + hit.point + ".");
+                if (Alert.alert != null && tooltip == null)
+                {
+                    GameObject t = Instantiate(tooltipBox, Alert.alert.gameObject.transform);   // Alert.alert.gameObject는 메인 Canvas
+                    tooltip = t.GetComponent<TooltipUI>();
+                    tooltip.SetText("체력", new Color(0.282f, 1f, 0f), "피해를 받을 때마다 감소하여 0 이하가 되면 쓰러집니다. 최대 체력은 52입니다.");
+                    tooltip.SetPosition(0.01f, 0.321f, 0.99f, 0.47f);
+                    tooltip.Appear();
+                }
+            }
+            // 공격력 툴팁을 보여주기 위한 코드입니다.
+            else if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 11)))
+            {
+                //Log("Click " + hit.collider.name + " / " + hit.point + ".");
+                if (Alert.alert != null && tooltip == null)
+                {
+                    GameObject t = Instantiate(tooltipBox, Alert.alert.gameObject.transform);   // Alert.alert.gameObject는 메인 Canvas
+                    tooltip = t.GetComponent<TooltipUI>();
+                    tooltip.SetText("공격력", new Color(0.647f, 0.647f, 0.647f), "공격 카드(불, 물, 전기, 바람, 독)의 효과에 관여하는 능력치입니다.\n공격력이 높으면 상대에게 더 큰 피해를 주고 게임을 빠르게 끝낼 수 있습니다.");
+                    tooltip.SetPosition(0.01f, 0.321f, 0.99f, 0.47f);
+                    tooltip.Appear();
+                }
+            }
+            // 권력 툴팁을 보여주기 위한 코드입니다.
+            else if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 12)))
+            {
+                //Log("Click " + hit.collider.name + " / " + hit.point + ".");
+                if (Alert.alert != null && tooltip == null)
+                {
+                    GameObject t = Instantiate(tooltipBox, Alert.alert.gameObject.transform);   // Alert.alert.gameObject는 메인 Canvas
+                    tooltip = t.GetComponent<TooltipUI>();
+                    tooltip.SetText("권력", new Color(0.8f, 0.365f, 0.078f), "교환할 수 있는 대상을 제한하는 능력치입니다.\n자신의 턴에는 자신보다 권력이 낮거나 같은 플레이어에게만 교환을 요청할 수 있습니다. 예외적으로 권력이 가장 낮은 플레이어들은 권력이 가장 높은 플레이어들에게 교환을 요청할 수 있습니다.");
+                    tooltip.SetPosition(0.01f, 0.321f, 0.99f, 0.47f);
+                    tooltip.Appear();
+                }
+            }
+            // 정신력 툴팁을 보여주기 위한 코드입니다.
+            else if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 13)))
+            {
+                if (Alert.alert != null && tooltip == null)
+                {
+                    GameObject t = Instantiate(tooltipBox, Alert.alert.gameObject.transform);   // Alert.alert.gameObject는 메인 Canvas
+                    tooltip = t.GetComponent<TooltipUI>();
+                    tooltip.SetText("정신력", new Color(0.305f, 0.125f, 0.8f), "경험치 획득량에 관여하는 능력치입니다.\n정신력이 높으면 게임 후반에 일어나는 상황에 유연하게 대처할 수 있습니다.");
+                    tooltip.SetPosition(0.01f, 0.321f, 0.99f, 0.47f);
+                    tooltip.Appear();
                 }
             }
             else if (tooltip != null)   // 마우스를 클릭했지만 클릭한 지점이 아무 것과도 닿지 않은 경우
             {
+                //Debug.LogWarning("There is no object.");
                 tooltip.Disappear();
+                tooltip = null;
             }
         }
         else if (isLocalPlayer && tooltip != null)  // 클릭하지 않고 있는 경우, 큰 카드를 드래그중인 경우, 두 곳 이상을 동시 터치한 경우
         {
+            //Debug.LogWarning("You didn't click anything.");
             tooltip.Disappear();
+            tooltip = null;
         }
 
         if (isServer && isAI && bm.GetTurnStep() == 2 && bm.GetTurnPlayer().Equals(this) && !isThinking)
@@ -643,17 +755,17 @@ public class PlayerControl : NetworkBehaviour
         if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 8)))
         {
             Debug.DrawLine(ray.origin, hit.point, Color.blue, 3f);
-            if (hit.collider.gameObject.GetComponentInParent<PlayerControl>() != null
-                && !hit.collider.gameObject.GetComponentInParent<PlayerControl>().Equals(this))
+            if (hit.collider.gameObject.GetComponent<PlayerControl>() != null
+                && !hit.collider.gameObject.GetComponent<PlayerControl>().Equals(this))
             {
                 if (objectTarget == null) 
                 {
-                    objectTarget = hit.collider.gameObject.GetComponentInParent<PlayerControl>();
+                    objectTarget = hit.collider.gameObject.GetComponent<PlayerControl>();
                     if (CanRequestExchange(objectTarget.GetPlayerIndex()))
                     {
-                        Instantiate(targetMark, hit.collider.gameObject.GetComponentInParent<PlayerControl>().transform);
+                        Instantiate(targetMark, hit.collider.gameObject.GetComponent<PlayerControl>().transform);
                         isMarked = true;
-                        //Log("Set " + hit.collider.gameObject.GetComponentInParent<PlayerControl>().GetName() + " to a target.");
+                        //Log("Set " + hit.collider.gameObject.GetComponent<PlayerControl>().GetName() + " to a target.");
                     }
                     else
                     {
@@ -662,15 +774,15 @@ public class PlayerControl : NetworkBehaviour
                         objectTarget = null;
                     }
                 }
-                else if (!objectTarget.Equals(hit.collider.gameObject.GetComponentInParent<PlayerControl>()))
+                else if (!objectTarget.Equals(hit.collider.gameObject.GetComponent<PlayerControl>()))
                 {
                     Destroy(GameObject.Find("TargetMark(Clone)"));
-                    objectTarget = hit.collider.gameObject.GetComponentInParent<PlayerControl>();
+                    objectTarget = hit.collider.gameObject.GetComponent<PlayerControl>();
                     if (CanRequestExchange(objectTarget.GetPlayerIndex()))
                     {
-                        Instantiate(targetMark, hit.collider.gameObject.GetComponentInParent<PlayerControl>().transform);
+                        Instantiate(targetMark, hit.collider.gameObject.GetComponent<PlayerControl>().transform);
                         isMarked = true;
-                        //Log("Set " + hit.collider.gameObject.GetComponentInParent<PlayerControl>().GetName() + " to a target.");
+                        //Log("Set " + hit.collider.gameObject.GetComponent<PlayerControl>().GetName() + " to a target.");
                     }
                     else
                     {
