@@ -9,10 +9,10 @@ public class PlayerControl : NetworkBehaviour
 {
 
     [SyncVar] private int currentHealth;    // 현재 남은 체력(실시간으로 변화, 외부 열람 불가)
-    [SyncVar] private int currentAttack;    // 현재 공격력(실시간으로 변화, 외부 열람 불가)
-    [SyncVar] private int currentAuthority;    // 현재 권력(실시간으로 변화, 외부 열람 불가)
-    [SyncVar] private int currentMentality;    // 현재 권력(실시간으로 변화, 외부 열람 불가)
-    [SyncVar] private int currentExperience;   // 현재 남은 경험치(실시간으로 변화, 외부 열람 불가)
+    [SyncVar] private int currentAttack;    // 현재 공격력(실시간으로 변화, 능력치 패널을 제외한 곳에서 열람 불가)
+    [SyncVar] private int currentAuthority;    // 현재 권력(실시간으로 변화, 능력치 패널을 제외한 곳에서 열람 불가)
+    [SyncVar] private int currentMentality;    // 현재 권력(실시간으로 변화, 능력치 패널을 제외한 곳에서 열람 불가)
+    [SyncVar] private int currentExperience;   // 현재 남은 경험치(실시간으로 변화, 능력치 패널을 제외한 곳에서 열람 불가)
     [SerializeField] [SyncVar] private int maxHealth = 52;      // 최대 체력(초기 체력)
     [SyncVar] private GameObject character; // 캐릭터 모델
     [SyncVar] private bool isDead = false;  // 사망 여부(true이면 사망)
@@ -42,6 +42,8 @@ public class PlayerControl : NetworkBehaviour
 
     private static BattleManager bm;
     private static CardDatabase cd;
+    private static StatPanelUI spUI;
+    private static LogPanelUI lpUI;
     //private static Alert alert;
 
     private GameObject Border;
@@ -214,7 +216,27 @@ public class PlayerControl : NetworkBehaviour
         {
             StatusUpdate();
         }
-        if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging)
+        if (isLocalPlayer && spUI == null && StatPanelUI.statPanelUI != null)
+        {
+            Debug.Log("StatPanelUI is not null.");
+            spUI = StatPanelUI.statPanelUI;
+            spUI.SetLocalPlayer(this);
+        }
+        if (isLocalPlayer && lpUI == null && LogPanelUI.logPanelUI != null)
+        {
+            lpUI = LogPanelUI.logPanelUI;
+            lpUI.SetLocalPlayer(this);
+        }
+        if (isLocalPlayer && spUI != null)
+        {
+            spUI.currentAttack = currentAttack;
+            spUI.currentAuthority = currentAuthority;
+            spUI.currentExperience = currentExperience;
+            spUI.currentMentality = currentMentality;
+        }
+        if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging
+                && (spUI == null || !spUI.GetIsOpen())
+                && (lpUI == null || !lpUI.GetIsOpen()))
         {
             /*
             if (bm.GetObjectPlayer() != null)
@@ -241,7 +263,7 @@ public class PlayerControl : NetworkBehaviour
         authorityUIText.GetComponent<Text>().text = statAuthority.ToString();
 
         /* 툴팁을 표시하기 위한 코드입니다. */
-        if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging)
+        if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging && !StatPanelUI.statPanelUI.GetIsOpen() && !LogPanelUI.logPanelUI.GetIsOpen())
         {
             List<Card> hand = bm.GetPlayerHand(this);
             Ray ray = GetComponentInChildren<Camera>().ScreenPointToRay(Input.mousePosition);
@@ -729,10 +751,12 @@ public class PlayerControl : NetworkBehaviour
     public void StatConfirm()
     {
         if (!isLocalPlayer || bm == null || bm.GetPlayerConfirmStat(GetPlayerIndex())) return;
+        /* TODO 바로 대입하면 안 되고 모든 플레이어가 능력치를 확정지어 turnStep이 바뀔 때 대입하여야 한다.
         experience = currentExperience;
         statAttack = currentAttack;
         statAuthority = currentAuthority;
         statMentality = currentMentality;
+        */
         // BattleManager에게 능력치를 확정했다는 신호 보내기
         CmdConfirmStat();
     }

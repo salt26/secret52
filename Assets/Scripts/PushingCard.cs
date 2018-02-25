@@ -92,7 +92,9 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         if ((localPlayer.Equals(bm.GetTurnPlayer()) && localPlayer.GetObjectTarget() != null && bm.GetTurnStep() == 2)
             || (localPlayer.Equals(bm.GetObjectPlayer()) && bm.GetTurnStep() == 3))
         {
-            if (bm.GetPlayerSelectedCard(localPlayer) == null && Input.touchCount <= 1)
+            if (bm.GetPlayerSelectedCard(localPlayer) == null && Input.touchCount <= 1
+                && (StatPanelUI.statPanelUI == null || !StatPanelUI.statPanelUI.GetIsOpen())
+                && (LogPanelUI.logPanelUI == null || !LogPanelUI.logPanelUI.GetIsOpen()))
             {
                 cardx.y = eventData.position.y;
                 if (cardx.y > cardOriginal.y)
