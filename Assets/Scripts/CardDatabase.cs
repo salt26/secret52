@@ -7,11 +7,11 @@ public class CardDatabase : MonoBehaviour {
     public static CardDatabase cardDatabase;
 
     private static List<CardInfo> cardInfo = new List<CardInfo>();
-    private static BattleManager bm;
+    //private static BattleManager bm;
 
     private void Awake()
     {
-        bm = gameObject.GetComponent<BattleManager>();
+        //bm = gameObject.GetComponent<BattleManager>();
         cardDatabase = this;
         CardInfo ci;
 

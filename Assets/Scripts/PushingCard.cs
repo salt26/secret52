@@ -15,7 +15,8 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     static public PlayerControl localPlayer = null;
 
     public GameObject tooltipBox;
-    private TooltipUI tooltip;
+    private static TooltipUI tooltip;
+    private bool tooltipActive;
 
     private Vector3 cardx;
     private Vector3 cardOriginal;
@@ -28,6 +29,7 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
         bm = BattleManager.bm;
         cd = CardDatabase.cardDatabase;
         tooltip = null;
+        tooltipActive = false;
     }
 
     private void Start()
@@ -78,6 +80,26 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
                 cardL = bm.GetCardInPosition(8);
                 cardR = bm.GetCardInPosition(9);
                 break;
+        }
+        if (tooltip == null && tooltipActive)
+        {
+            if (CompareTag("Left") && cardL != null && transform.position.y == cardOriginal.y)
+            {
+                GameObject t = Instantiate(tooltipBox, GetComponentInParent<Canvas>().gameObject.transform);
+                tooltip = t.GetComponent<TooltipUI>();
+                tooltip.SetText(cd.GetCardInfo(cardL).GetNameText(),
+                    cd.GetCardInfo(cardL).GetColor(), cd.GetCardInfo(cardL).GetDetailText());
+                tooltip.Appear();
+            }
+            else if (CompareTag("Right") && cardR != null && transform.position.y == cardOriginal.y)
+            {
+                GameObject t = Instantiate(tooltipBox, GetComponentInParent<Canvas>().gameObject.transform);
+                tooltip = t.GetComponent<TooltipUI>();
+                tooltip.SetText(cd.GetCardInfo(cardR).GetNameText(),
+                    cd.GetCardInfo(cardR).GetColor(), cd.GetCardInfo(cardR).GetDetailText());
+                tooltip.Appear();
+            }
+            tooltipActive = false;
         }
     }
 
@@ -134,30 +156,14 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (cd == null || tooltip != null) return;
-        if (CompareTag("Left") && cardL != null && transform.position.y == cardOriginal.y)
-        {
-            GameObject t = Instantiate(tooltipBox, GetComponentInParent<Canvas>().gameObject.transform);
-            tooltip = t.GetComponent<TooltipUI>();
-            tooltip.SetText(cd.GetCardInfo(cardL).GetNameText(),
-                cd.GetCardInfo(cardL).GetColor(), cd.GetCardInfo(cardL).GetDetailText());
-            tooltip.Appear();
-        }
-        else if (CompareTag("Right") && cardR != null && transform.position.y == cardOriginal.y)
-        {
-            GameObject t = Instantiate(tooltipBox, GetComponentInParent<Canvas>().gameObject.transform);
-            tooltip = t.GetComponent<TooltipUI>();
-            tooltip.SetText(cd.GetCardInfo(cardR).GetNameText(),
-                cd.GetCardInfo(cardR).GetColor(), cd.GetCardInfo(cardR).GetDetailText());
-            tooltip.Appear();
-        }
+        tooltipActive = true;
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         if (tooltip == null) return;
         tooltip.Disappear();
-        tooltip = null;
+        tooltipActive = false;
     }
 }
 

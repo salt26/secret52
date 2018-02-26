@@ -48,11 +48,13 @@ public class BattleManager : NetworkBehaviour
     // 이것의 값이 false일 때만 그 플레이어가 직접 능력치를 변경할 수 있습니다.
     // 값을 바꿀 때는 항상 RpcPlayerConfirmStat(playerIndex, b)를 함께 불러주어야 합니다.
 
-    [SyncVar] private int turnPlayer = 0; // 현재 자신의 턴을 진행하는 플레이어 번호
-    [SyncVar] private int turnStep;   // 턴의 단계 (0: 대전 시작, 1: 턴 시작, 2: 턴 진행자의 교환 상대 선택과 교환할 카드 선택,
-                                      //           3: 교환당하는 자의 교환할 카드 선택, 4: 교환 중(카드를 낼 때와 받을 때 효과 발동),
-                                      //           5: 빙결 발동, 6: 턴이 끝날 때 효과 발동, 7: 턴 종료, 13: 능력치 분배 중)
-    [SyncVar] private int objectPlayer = -1;     // 교환당하는 플레이어
+    [SyncVar] private int turnPlayer = 0;   // 현재 자신의 턴을 진행하는 플레이어 번호
+    [SyncVar] private int turnStep;         // 턴의 단계 (0: 대전 시작, 1: 턴 시작, 2: 턴 진행자의 교환 상대 선택과 교환할 카드 선택,
+                                            //           3: 교환당하는 자의 교환할 카드 선택, 4: 교환 중(카드를 낼 때와 받을 때 효과 발동),
+                                            //           5: 빙결 발동, 6: 턴이 끝날 때 효과 발동, 7: 턴 종료,
+                                            //           13: 능력치 분배 전 경험치 지급, 14: 능력치 분배 중)
+    [SyncVar] private int turnNum = 0;      // 현재 몇 번째 턴인가?
+    [SyncVar] private int objectPlayer = -1;              // 교환당하는 플레이어
     [SyncVar] private int turnPlayerCard = -1;            // 턴을 진행한 플레이어가 낸 카드
     [SyncVar] private int objectPlayerCard = -1;          // 교환당하는 플레이어가 낸 카드
     private Exchange exchange;
@@ -64,7 +66,7 @@ public class BattleManager : NetworkBehaviour
     private Quaternion tpcRotation;
     private Quaternion opcRotation;
 
-    private static CardDatabase cd;
+    //private static CardDatabase cd;
 
     private List<int> cardcode = new List<int>();
     // cardcode의 인덱스는 어떤 플레이어의 손패에 카드가 있는지를 나타낸다.
@@ -85,7 +87,7 @@ public class BattleManager : NetworkBehaviour
         //Debug.Log("BattleManager Awake.");
 
         turnStep = 0;
-        cd = GetComponent<CardDatabase>();
+        //cd = GetComponent<CardDatabase>();
     }
 
     public override void OnStartServer()
@@ -228,11 +230,13 @@ public class BattleManager : NetworkBehaviour
             m += " " + bm.GetCardCode()[i];
         }
         RpcPrintLog(m);
+        
+        yield return new WaitForSeconds(3f);
 
         //RpcPrintLog("Battle starts.");
         //RpcPrintLog("turnStep 1(" + players[turnPlayer].GetName() + " turn starts)");
 
-        turnStep = 1;
+        turnStep = 13;  // 능력치 분배 먼저
     }
 
     /*
@@ -263,6 +267,7 @@ public class BattleManager : NetworkBehaviour
 
         if (turnStep == 1)
         {
+            turnNum++;
             // 빙결된 상태이면 교환을 할 수 없다.
             if (players[turnPlayer].HasFreezed())
             {
@@ -434,7 +439,9 @@ public class BattleManager : NetworkBehaviour
                 //RpcPrintLog("Turn ends.");
                 turnPlayer += 1;
                 if (turnPlayer >= 5) turnPlayer = 0;
-                turnStep = 1;
+
+                if (turnNum % 5 == 0) turnStep = 13;    // 한 사이클이 끝나서 능력치 분배 시간이 됨
+                else turnStep = 1;
                 //RpcPrintLog("turnStep 1(" + players[turnPlayer].GetName() + " turn starts)");
             }
         }
@@ -460,7 +467,33 @@ public class BattleManager : NetworkBehaviour
         }
         else if (turnStep == 13)
         {
+            for (int i = 0; i < 5; i++)
+            {
+                GetPlayers()[i].RpcExperienceUp();
+                SetPlayerConfirmStat(i, false);
+            }
+            turnStep = 14;
+        }
+        else if (turnStep == 14)
+        {
             // TODO 능력치 분배 중
+            bool b = true;
+            for (int i = 0; i < 5; i++)
+            {
+                if (!GetPlayerConfirmStat(i))
+                {
+                    b = false;
+                    break;
+                }
+            }
+            if (b)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    GetPlayers()[i].RpcEndStatDistribTime();
+                }
+                turnStep = 1;
+            }
         }
 
     }
@@ -488,6 +521,12 @@ public class BattleManager : NetworkBehaviour
         }
     }
 
+    /// <summary>
+    /// player의 손에 있는 카드 두 장의 목록을 받아옵니다.
+    /// 정상적인 경우 배열의 크기는 2이고, 그렇지 않은 경우 null이 반환됩니다.
+    /// </summary>
+    /// <param name="player"></param>
+    /// <returns></returns>
     public List<Card> GetPlayerHand(PlayerControl player)
     {
         List<Card> hand = new List<Card>();

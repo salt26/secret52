@@ -28,6 +28,7 @@ public class StatPanelUI : MonoBehaviour {
     public Image confirmBorder;
     public Text confirmText;
 
+    public Text dText;
     public Text dAtckText;
     public Text dAthrText;
     public Text dMntlText;
@@ -39,9 +40,9 @@ public class StatPanelUI : MonoBehaviour {
     [HideInInspector] public int currentExperience; // 확정 후 경험치 (PlayerControl에서 직접 받아옴)
 
     private bool isOpen;
-    private bool isContribTime;     // 능력치 분배 시간인가? (bm의 turnStep 기준)
-    private bool isConfirmed;       // 바뀐 능력치를 확정하였는가? (isContribTime이 false이면 isConfirmed도 false)
-    private bool canRedo;           // 되돌릴 변경사항이 있는가? (isContribTime이 false이면 이것도 false, isConfirmed가 true이면 이것은 false)
+    private bool isDistribTime;     // 능력치 분배 시간인가? (bm의 turnStep 기준)
+    private bool isConfirmed;       // 바뀐 능력치를 확정하였는가? (isDistribTime이 false이면 isConfirmed도 false)
+    private bool canRedo;           // 되돌릴 변경사항이 있는가? (isDistribTime이 false이면 이것도 false, isConfirmed가 true이면 이것은 false)
     private bool canUpAttack;
     private bool canUpAuthority;
     private bool canUpMentality;
@@ -52,7 +53,7 @@ public class StatPanelUI : MonoBehaviour {
         statPanelUI = this;
         isOpen = false;
         isConfirmed = false;
-        isContribTime = false;
+        isDistribTime = false;
         canRedo = false;
         canUpAttack = false;
         canUpAuthority = false;
@@ -68,28 +69,43 @@ public class StatPanelUI : MonoBehaviour {
 
         if (isOpen && player != null)
         {
-            cAtckText.text = currentAttack.ToString();
-            cAthrText.text = currentAuthority.ToString();
-            cMntlText.text = currentMentality.ToString();
-            cExpText.text = currentExperience.ToString();
+            if (!isDistribTime)
+            {
+                cAtckText.text = player.GetStatAttack().ToString();
+                cAthrText.text = player.GetStatAuthority().ToString();
+                cMntlText.text = player.GetStatMentality().ToString();
+                cExpText.text = player.GetExperience().ToString();
+            }
+            else
+            {
+                cAtckText.text = currentAttack.ToString();
+                cAthrText.text = currentAuthority.ToString();
+                cMntlText.text = currentMentality.ToString();
+                cExpText.text = currentExperience.ToString();
+            }
             dAtckText.text = player.GetStatAttack().ToString();
             dAthrText.text = player.GetStatAuthority().ToString();
             dMntlText.text = player.GetStatMentality().ToString();
             dExpText.text = player.GetExperience().ToString();
-            uMntlText.text = "-" + (currentExperience + 1).ToString() + "\nExp";
-
-            
+            uMntlText.text = "-" + (currentMentality + 1).ToString() + "\nExp";
         }
 
         // 능력치 분배 시간이 아니게 된 경우
-        if (bm.GetTurnStep() != 13 && isContribTime)
+        if (bm.GetTurnStep() != 14 && isDistribTime)
         {
-            isContribTime = false;
+            isDistribTime = false;
             isConfirmed = false;
             canRedo = false;
             canUpAttack = false;
             canUpAuthority = false;
             canUpMentality = false;
+
+            dText.color = SetAlphaTo255(cText.color);
+            dAtckText.color = SetAlphaTo255(cAtckText.color);
+            dAthrText.color = SetAlphaTo255(cAthrText.color);
+            dMntlText.color = SetAlphaTo255(cMntlText.color);
+            dExpText.color = SetAlphaTo255(cExpText.color);
+
             cText.color = SetAlphaTo96(cText.color);
             cAtckText.color = SetAlphaTo96(cAtckText.color);
             cAthrText.color = SetAlphaTo96(cAthrText.color);
@@ -115,19 +131,26 @@ public class StatPanelUI : MonoBehaviour {
         }
 
         // 능력치 분배 시간이 된 경우
-        if (bm.GetTurnStep() == 13 && !isContribTime)
+        if (bm.GetTurnStep() == 14 && !isDistribTime)
         {
-            isContribTime = true;
+            isDistribTime = true;
             isConfirmed = false;
             canRedo = false;
+
+            dText.color = SetAlphaTo255(cText.color);
+            dAtckText.color = SetAlphaTo255(cAtckText.color);
+            dAthrText.color = SetAlphaTo255(cAthrText.color);
+            dMntlText.color = SetAlphaTo255(cMntlText.color);
+            dExpText.color = SetAlphaTo255(cExpText.color);
+
             cText.color = SetAlphaTo255(cText.color);
             cAtckText.color = SetAlphaTo255(cAtckText.color);
             cAthrText.color = SetAlphaTo255(cAthrText.color);
             cMntlText.color = SetAlphaTo255(cMntlText.color);
             cExpText.color = SetAlphaTo255(cExpText.color);
-            redoButton.color = SetAlphaTo255(redoButton.color);
-            redoBorder.color = SetAlphaTo255(redoBorder.color);
-            redoText.color = SetAlphaTo255(redoText.color);
+            redoButton.color = SetAlphaTo96(redoButton.color);
+            redoBorder.color = SetAlphaTo96(redoBorder.color);
+            redoText.color = SetAlphaTo96(redoText.color);
             confirmButton.color = SetAlphaTo255(confirmButton.color);
             confirmBorder.color = SetAlphaTo255(confirmBorder.color);
             confirmText.color = SetAlphaTo255(confirmText.color);
@@ -135,7 +158,7 @@ public class StatPanelUI : MonoBehaviour {
             confirmButton.GetComponent<Button>().interactable = true;
         }
 
-        if (isContribTime && !isConfirmed) { 
+        if (isDistribTime && !isConfirmed) { 
             if (canUpAttack && (currentAttack >= 99 || currentExperience < 5))
             {
                 canUpAttack = false;
@@ -186,9 +209,13 @@ public class StatPanelUI : MonoBehaviour {
 
     public void OpenPanel()
     {
-        if (isOpen) return;
+        if (isOpen || bm == null || bm.GetTurnStep() <= 0) return;
         isOpen = true;
         statPanel.SetActive(true);
+        if (LogPanelUI.logPanelUI != null && LogPanelUI.logPanelUI.GetIsOpen())
+        {
+            LogPanelUI.logPanelUI.ClosePanel();
+        }
     }
 
     public void ClosePanel()
@@ -218,7 +245,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void Confirm()
     {
-        if (player == null || !isContribTime || isConfirmed) return;
+        if (player == null || !isDistribTime || isConfirmed) return;
         player.StatConfirm();
         isConfirmed = true;
         canRedo = false;
@@ -226,6 +253,17 @@ public class StatPanelUI : MonoBehaviour {
         canUpAuthority = false;
         canUpMentality = false;
 
+        dText.color = SetAlphaTo96(cText.color);
+        dAtckText.color = SetAlphaTo96(cAtckText.color);
+        dAthrText.color = SetAlphaTo96(cAthrText.color);
+        dMntlText.color = SetAlphaTo96(cMntlText.color);
+        dExpText.color = SetAlphaTo96(cExpText.color);
+
+        cText.color = SetAlphaTo255(cText.color);
+        cAtckText.color = SetAlphaTo255(cAtckText.color);
+        cAthrText.color = SetAlphaTo255(cAthrText.color);
+        cMntlText.color = SetAlphaTo255(cMntlText.color);
+        cExpText.color = SetAlphaTo255(cExpText.color);
         uAtckButton.color = SetAlphaTo96(uAtckButton.color);
         uAthrButton.color = SetAlphaTo96(uAthrButton.color);
         uMntlButton.color = SetAlphaTo96(uMntlButton.color);
@@ -247,7 +285,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void Redo()
     {
-        if (player == null || !isContribTime || isConfirmed || !canRedo) return;
+        if (player == null || !isDistribTime || isConfirmed || !canRedo) return;
         canRedo = false;
         player.StatRedo();
         redoButton.color = SetAlphaTo96(redoButton.color);
@@ -258,7 +296,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpAttack()
     {
-        if (player == null || !isContribTime || isConfirmed || !canUpAttack) return;
+        if (player == null || !isDistribTime || isConfirmed || !canUpAttack) return;
         player.StatAttackUp();
         if (!canRedo)
         {
@@ -272,7 +310,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpAuthority()
     {
-        if (player == null || !isContribTime || isConfirmed || !canUpAuthority) return;
+        if (player == null || !isDistribTime || isConfirmed || !canUpAuthority) return;
         player.StatAuthorityUp();
         if (!canRedo)
         {
@@ -286,7 +324,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpMentality()
     {
-        if (player == null || !isContribTime || isConfirmed || !canUpMentality) return;
+        if (player == null || !isDistribTime || isConfirmed || !canUpMentality) return;
         player.StatMentalityUp();
         if (!canRedo)
         {

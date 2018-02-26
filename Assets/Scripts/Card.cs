@@ -12,7 +12,7 @@ public class Card : NetworkBehaviour {
     private Image Border; // HighLight
     static public PlayerControl localPlayer = null;
 
-    private static BattleManager bm;
+    //private static BattleManager bm;
 
     private bool isMoving = false;                                  // 한 번에 하나의 함수만 실행하기 위해 사용되는 변수
     private Queue<IEnumerator> process = new Queue<IEnumerator>();  // 함수를 순차적으로 실행하기 위한 Queue
@@ -30,7 +30,7 @@ public class Card : NetworkBehaviour {
 
     private void Start()
     {
-        bm = BattleManager.bm;
+        //bm = BattleManager.bm;
     }
 
     private void FixedUpdate()

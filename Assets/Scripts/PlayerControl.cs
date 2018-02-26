@@ -42,6 +42,7 @@ public class PlayerControl : NetworkBehaviour
 
     private static BattleManager bm;
     private static CardDatabase cd;
+    private static StatusUI statusUI;
     private static StatPanelUI spUI;
     private static LogPanelUI lpUI;
     //private static Alert alert;
@@ -108,8 +109,8 @@ public class PlayerControl : NetworkBehaviour
         isStart = false;
         isThinking = false;
         isCardDragging = false;
-        statAttack = 13;     // 초기값 4로 설정
-        statAuthority = Random.Range(1, 6);  // 초기값 1로 설정
+        statAttack = 4;     // 초기값 4로 설정
+        statAuthority = 1;  // 초기값 1로 설정
         statMentality = 6;  // 초기값 6으로 설정
         currentAttack = statAttack;
         currentAuthority = statAuthority;
@@ -212,7 +213,11 @@ public class PlayerControl : NetworkBehaviour
             Log(m);
         }
         */
-        if (isLocalPlayer)
+        if (isLocalPlayer && statusUI == null && StatusUI.statusUI != null)
+        {
+            statusUI = StatusUI.statusUI;
+        }
+        if (isLocalPlayer && statusUI != null)
         {
             StatusUpdate();
         }
@@ -272,7 +277,7 @@ public class PlayerControl : NetworkBehaviour
             // 작은 카드의 툴팁을 보여주기 위한 코드입니다.
             // 앞면인 작은 카드를 클릭하고 있는 동안에 카드 이름과 설명을 포함한 툴팁이 나타납니다.
             // 뒷면인 작은 카드를 클릭하고 있는 동안에 비공개 공격 카드 설명을 포함한 툴팁이 나타납니다.
-            if (Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 9)))
+            if (hand != null && Physics.Raycast(ray, out hit, Mathf.Infinity, (1 << 9)))
             {
                 //Log("Click " + hit.collider.name + ".");
                 Debug.DrawLine(ray.origin, hit.point, Color.yellow, 3f);
@@ -358,7 +363,7 @@ public class PlayerControl : NetworkBehaviour
                 {
                     //Debug.LogWarning("This isn't PlayerControl.");
                     tooltip.Disappear();
-                    tooltip = null;
+                    //tooltip = null;
                 }
             }
             // 체력 툴팁을 보여주기 위한 코드입니다.
@@ -407,7 +412,7 @@ public class PlayerControl : NetworkBehaviour
                 {
                     GameObject t = Instantiate(tooltipBox, Alert.alert.gameObject.transform);   // Alert.alert.gameObject는 메인 Canvas
                     tooltip = t.GetComponent<TooltipUI>();
-                    tooltip.SetText("정신력", new Color(0.305f, 0.125f, 0.8f), "경험치 획득량에 관여하는 능력치입니다.\n정신력이 높으면 게임 후반에 일어나는 상황에 유연하게 대처할 수 있습니다.");
+                    tooltip.SetText("정신력", new Color(0.305f, 0.125f, 0.8f), "경험치 획득량에 관여하는 능력치입니다.\n능력치 분배 시간이 될 때마다 자신의 정신력만큼 경험치를 획득합니다. 정신력이 높으면 게임 후반에 일어나는 상황에 유연하게 대처할 수 있습니다.");
                     tooltip.SetPosition(0.01f, 0.321f, 0.99f, 0.47f);
                     tooltip.Appear();
                 }
@@ -416,16 +421,17 @@ public class PlayerControl : NetworkBehaviour
             {
                 //Debug.LogWarning("There is no object.");
                 tooltip.Disappear();
-                tooltip = null;
+                //tooltip = null;
             }
         }
         else if (isLocalPlayer && tooltip != null)  // 클릭하지 않고 있는 경우, 큰 카드를 드래그중인 경우, 두 곳 이상을 동시 터치한 경우
         {
             //Debug.LogWarning("You didn't click anything.");
             tooltip.Disappear();
-            tooltip = null;
+            //tooltip = null;
         }
 
+        /* 인공지능이 행동하기 위한 코드입니다. */
         if (isServer && isAI && bm.GetTurnStep() == 2 && bm.GetTurnPlayer().Equals(this) && !isThinking)
         {
             isThinking = true;
@@ -435,6 +441,11 @@ public class PlayerControl : NetworkBehaviour
         {
             isThinking = true;
             StartCoroutine("AIExchangeDelay");
+        }
+        if (isServer && isAI && bm.GetTurnStep() == 14 && !isThinking)
+        {
+            isThinking = true;
+            StartCoroutine("AIStatDistribute");
         }
     }
 
@@ -771,6 +782,27 @@ public class PlayerControl : NetworkBehaviour
         currentExperience += statMentality;
         if (currentExperience > 9999) currentExperience = 9999;
         experience = currentExperience;
+        if (spUI != null)
+        {
+            spUI.OpenPanel();
+        }
+    }
+
+    /// <summary>
+    /// 능력치 분배 시간이 끝났을 때 변경사항을 적용하는 함수입니다.
+    /// </summary>
+    [ClientRpc]
+    public void RpcEndStatDistribTime()
+    {
+        if (!isLocalPlayer) return;
+        experience = currentExperience;
+        statAttack = currentAttack;
+        statAuthority = currentAuthority;
+        statMentality = currentMentality;
+        if (spUI != null)
+        {
+            spUI.ClosePanel();
+        }
     }
 
     [ClientCallback]
@@ -1341,7 +1373,7 @@ public class PlayerControl : NetworkBehaviour
     
     private void Log(string msg)
     {
-        Debug.Log(msg);
+        //Debug.Log(msg);
         //ConsoleLogUI.AddText(msg);
     }
 
@@ -1357,6 +1389,7 @@ public class PlayerControl : NetworkBehaviour
 
     private void StatusUpdate()
     {
+        if (statusUI == null) return;
         int ts = bm.GetTurnStep();
         bool isTP = (Equals(bm.GetTurnPlayer()));
         bool isOP = (Equals(bm.GetObjectPlayer()));
@@ -1364,51 +1397,80 @@ public class PlayerControl : NetworkBehaviour
 
         if (ts == 0)
         {
-            StatusUI.SetText("대전 시작");
+            statusUI.SetText("대전 시작!");
+            statusUI.PlainText();
         }
-        else if (ts == 2 && isTP && objectTarget == null)
+        else if (ts == 2 && isTP && ((spUI != null && spUI.GetIsOpen()) || (lpUI != null && lpUI.GetIsOpen())))
         {
             if (!isAlerted0)
             {
                 Alert.alert.CreateAlert(0);
                 isAlerted0 = true;
             }
-            StatusUI.SetText("교환하고 싶은 상대의 캐릭터를 누르세요.");
+            statusUI.SetText("열린 창을 닫고 교환을 진행하세요.");
+            statusUI.HighlightText();
         }
-        else if (ts == 2 && isTP && objectTarget != null)
+        else if (ts == 2 && isTP && objectTarget == null && (spUI == null || !spUI.GetIsOpen()) && (lpUI == null || !lpUI.GetIsOpen()))
         {
-            StatusUI.SetText("교환하고 싶은, 하단의 카드 하나를 위로 드래그해서 내세요.");
+            if (!isAlerted0)
+            {
+                Alert.alert.CreateAlert(0);
+                isAlerted0 = true;
+            }
+            statusUI.SetText("교환하고 싶은 상대의 캐릭터를 누르세요.");
+            statusUI.PlainText();
+        }
+        else if (ts == 2 && isTP && objectTarget != null && (spUI == null || !spUI.GetIsOpen()) && (lpUI == null || !lpUI.GetIsOpen()))
+        {
+            statusUI.SetText("교환하고 싶은, 하단의 카드 하나를 위로 드래그해서 내세요.");
+            statusUI.PlainText();
         }
         else if (ts == 2)
         {
-            StatusUI.SetText(bm.GetTurnPlayer().GetName() + "의 턴");
+            statusUI.SetText(bm.GetTurnPlayer().GetName() + "의 턴");
+            statusUI.PlainText();
             isAlerted1 = false;
         }
         else if (ts == 3 && isTP)
         {
-            StatusUI.SetText("상대에게 교환 요청을 보냈습니다. 기다리세요.");
+            statusUI.SetText("상대에게 교환 요청을 보냈습니다. 기다리세요.");
+            statusUI.PlainText();
         }
-        else if (ts == 3 && isOP)
+        else if (ts == 3 && isOP && ((spUI != null && spUI.GetIsOpen()) || (lpUI != null && lpUI.GetIsOpen())))
         {
             if (!isAlerted1)
             {
                 Alert.alert.CreateAlert(1);
                 isAlerted1 = true;
             }
-            StatusUI.SetText("교환 요청을 받았습니다. 교환하고 싶은, 하단의 카드 하나를 위로 드래그해서 내세요.");
+            statusUI.SetText("교환 요청을 받았습니다. 열린 창을 닫고 교환을 진행하세요.");
+            statusUI.HighlightText();
+        }
+        else if (ts == 3 && isOP && (spUI == null || !spUI.GetIsOpen()) && (lpUI == null || !lpUI.GetIsOpen()))
+        {
+            if (!isAlerted1)
+            {
+                Alert.alert.CreateAlert(1);
+                isAlerted1 = true;
+            }
+            statusUI.SetText("교환 요청을 받았습니다. 교환하고 싶은, 하단의 카드 하나를 위로 드래그해서 내세요.");
+            statusUI.PlainText();
         }
         else if (ts == 3)
         {
-            StatusUI.SetText(bm.GetTurnPlayer().GetName() + "이(가) " + bm.GetObjectPlayer().GetName() + "에게 교환을 요청했습니다.");
+            statusUI.SetText(bm.GetTurnPlayer().GetName() + "이(가) " + bm.GetObjectPlayer().GetName() + "에게 교환을 요청했습니다.");
+            statusUI.PlainText();
         }
         else if (ts == 4 || ts == 9)
         {
-            StatusUI.SetText("교환중...");
+            statusUI.SetText("교환중...");
+            statusUI.PlainText();
             isAlerted0 = false;
         }
         else if ((ts == 5 || ts == 11))
         {
-            StatusUI.SetText(bm.GetTurnPlayer().GetName() + "이(가) 빙결되어 이번 턴에 교환할 수 없습니다.");
+            statusUI.SetText(bm.GetTurnPlayer().GetName() + "이(가) 빙결되어 이번 턴에 교환할 수 없습니다.");
+            statusUI.PlainText();
         }
         else if (ts == 8)
         {
@@ -1419,7 +1481,8 @@ public class PlayerControl : NetworkBehaviour
                     s += bm.GetPlayers()[j].GetName() + " ";
                 }
             }
-            StatusUI.SetText("대전 종료!\n" + s + "승리!");
+            statusUI.SetText("대전 종료!\n" + s + "승리!");
+            statusUI.HighlightText();
             if (!isAlerted3 && bm.GetIsWin()[GetPlayerIndex()])
             {
                 Alert.alert.CreateAlert(3);
@@ -1438,11 +1501,31 @@ public class PlayerControl : NetworkBehaviour
                 Alert.alert.CreateAlert(2);
                 isAlerted2 = true;
             }
-            StatusUI.SetText("누군가가 게임을 나갔습니다. 대전을 진행할 수 없으므로 종료합니다.");
+            statusUI.SetText("누군가가 게임을 나갔습니다. 대전을 진행할 수 없으므로 종료합니다.");
+            statusUI.HighlightText();
+        }
+        else if (ts == 13)
+        {
+            // TODO Alert하기
+        }
+        else if (ts == 14 && spUI != null && spUI.GetIsOpen() && !bm.GetPlayerConfirmStat(GetPlayerIndex()))
+        {
+            statusUI.SetText("능력치를 원하는만큼 올리고 확정 버튼을 누르세요.");
+            statusUI.PlainText();
+        }
+        else if (ts == 14 && spUI != null && !spUI.GetIsOpen() && !bm.GetPlayerConfirmStat(GetPlayerIndex()))
+        {
+            statusUI.SetText("능력치 분배를 완료해야 합니다! '나의 능력치' 창을 여세요.");
+            statusUI.HighlightText();
+        }
+        else if (ts == 14 && spUI != null && bm.GetPlayerConfirmStat(GetPlayerIndex()))
+        {
+            statusUI.SetText("다른 플레이어들이 능력치를 확정하기를 기다리는 중...");
+            statusUI.PlainText();
         }
         else
         {
-            StatusUI.ClearText();
+            statusUI.ClearText();
         }
     }
 
@@ -1588,6 +1671,14 @@ public class PlayerControl : NetworkBehaviour
         AIThinking(bm.GetTurnPlayer());
         bm.SetCardToPlay(playCardAI.GetCardCode(), GetPlayerIndex());
         playCardAI = null;
+        yield return null;
+        isThinking = false;
+    }
+
+    IEnumerator AIStatDistribute()
+    {
+        // TODO 능력치를 판단하여 알아서 올리게 하자.
+        bm.SetPlayerConfirmStat(GetPlayerIndex(), true);
         yield return null;
         isThinking = false;
     }

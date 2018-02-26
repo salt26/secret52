@@ -9,6 +9,7 @@ public class TooltipUI : MonoBehaviour {
     private Text text;
     public Image border;
     private RectTransform rect;
+    private bool isDisappearing;
 
     private void Awake()
     {
@@ -22,6 +23,7 @@ public class TooltipUI : MonoBehaviour {
         rect = GetComponent<RectTransform>();
         rect.anchorMin = new Vector2(0.01f, 0.321f);
         rect.anchorMax = new Vector2(0.99f, 0.43f);
+        isDisappearing = false;
     }
 
     public void SetText(string body)
@@ -68,6 +70,8 @@ public class TooltipUI : MonoBehaviour {
     /// </summary>
     public void Disappear()
     {
+        if (isDisappearing) return;
+        isDisappearing = true;
         StopCoroutine("FadeIn");
         StartCoroutine("FadeOut");
     }

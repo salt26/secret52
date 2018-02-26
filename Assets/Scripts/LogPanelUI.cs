@@ -5,6 +5,7 @@ using UnityEngine;
 public class LogPanelUI : MonoBehaviour {
 
     public static LogPanelUI logPanelUI;
+    private static BattleManager bm;
 
     public GameObject logPanel;
 
@@ -17,11 +18,24 @@ public class LogPanelUI : MonoBehaviour {
         isOpen = false;
     }
 
+    void FixedUpdate()
+    {
+        if (bm == null)
+        {
+            bm = BattleManager.bm;
+            return;
+        }
+    }
+
     public void OpenPanel()
     {
-        if (isOpen) return;
+        if (isOpen || bm == null || bm.GetTurnStep() <= 0) return;
         isOpen = true;
         logPanel.SetActive(true);
+        if (StatPanelUI.statPanelUI != null && StatPanelUI.statPanelUI.GetIsOpen())
+        {
+            StatPanelUI.statPanelUI.ClosePanel();
+        }
     }
 
     public void ClosePanel()

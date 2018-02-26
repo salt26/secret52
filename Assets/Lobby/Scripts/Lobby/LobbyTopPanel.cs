@@ -7,6 +7,7 @@ namespace Prototype.NetworkLobby
     public class LobbyTopPanel : MonoBehaviour
     {
         public bool isInGame = false;
+        public Text buttonText;
 
         protected bool isDisplayed = true;
         protected Image panelImage;
@@ -20,13 +21,27 @@ namespace Prototype.NetworkLobby
         void Update()
         {
             if (!isInGame)
+            {
+                buttonText.text = "BACK";
                 return;
+            }
+
+            if (isDisplayed)
+            {
+                buttonText.text = "QUIT";
+            }
 
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 ToggleVisibility(!isDisplayed);
             }
-
+            /*
+            if (isInGame && isDisplayed && Input.GetMouseButton(0) && Input.touchCount <= 1
+                && Input.mousePosition.y < Screen.height - 100f)
+            {
+                ToggleVisibility(false);
+            }
+            */
         }
 
         public void ToggleVisibility(bool visible)
