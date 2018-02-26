@@ -75,6 +75,7 @@ public class PlayerControl : NetworkBehaviour
     private bool isAlerted1;
     private bool isAlerted2;
     private bool isAlerted3;
+    private bool isAlerted5;
 
     private bool isStart;
     private bool isThinking;    // 인공지능의 생각 전 딜레이 동안 true가 됨
@@ -106,6 +107,7 @@ public class PlayerControl : NetworkBehaviour
         isAlerted1 = false;
         isAlerted2 = false;
         isAlerted3 = false;
+        isAlerted5 = false;
         isStart = false;
         isThinking = false;
         isCardDragging = false;
@@ -782,6 +784,15 @@ public class PlayerControl : NetworkBehaviour
         currentExperience += statMentality;
         if (currentExperience > 9999) currentExperience = 9999;
         experience = currentExperience;
+    }
+
+    /// <summary>
+    /// 능력치 패널이 자동으로 열리도록 하는 함수입니다.
+    /// </summary>
+    [ClientRpc]
+    public void RpcOpenStatPanel()
+    {
+        if (!isLocalPlayer) return;
         if (spUI != null)
         {
             spUI.OpenPanel();
@@ -1430,6 +1441,7 @@ public class PlayerControl : NetworkBehaviour
             statusUI.SetText(bm.GetTurnPlayer().GetName() + "의 턴");
             statusUI.PlainText();
             isAlerted1 = false;
+            isAlerted5 = false;
         }
         else if (ts == 3 && isTP)
         {
@@ -1504,9 +1516,15 @@ public class PlayerControl : NetworkBehaviour
             statusUI.SetText("누군가가 게임을 나갔습니다. 대전을 진행할 수 없으므로 종료합니다.");
             statusUI.HighlightText();
         }
-        else if (ts == 13)
+        else if (ts == 13 || ts == 15)
         {
-            // TODO Alert하기
+            if (!isAlerted5)
+            {
+                Alert.alert.CreateAlert(5);
+                isAlerted5 = true;
+            }
+            statusUI.SetText("능력치 분배 시간!");
+            statusUI.PlainText();
         }
         else if (ts == 14 && spUI != null && spUI.GetIsOpen() && !bm.GetPlayerConfirmStat(GetPlayerIndex()))
         {

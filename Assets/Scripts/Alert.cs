@@ -15,6 +15,7 @@ public class Alert : MonoBehaviour {
     public Sprite disconnectSprite; // i == 2
     public Sprite battleWinSprite; // i == 3
     public Sprite battleLoseSprite; // i == 4
+    public Sprite statDistribSprite; // i == 5
 
     private void Awake()
     {
@@ -23,7 +24,7 @@ public class Alert : MonoBehaviour {
 
     public void CreateAlert(int i)
     {
-        if (i < 0 || i >= 5) return;
+        if (i < 0 || i >= 6) return;
         StartCoroutine(ShowAlert(i));
     }
 
@@ -47,8 +48,11 @@ public class Alert : MonoBehaviour {
             case 4:
                 image.sprite = battleLoseSprite;
                 break;
+            case 5:
+                image.sprite = statDistribSprite;
+                break;
         }
-        yield return new WaitForSeconds(1.5f);
+        yield return new WaitForSeconds(1.8f);
         alertPanel.gameObject.SetActive(false);
     }
 }

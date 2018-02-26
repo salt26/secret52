@@ -472,7 +472,8 @@ public class BattleManager : NetworkBehaviour
                 GetPlayers()[i].RpcExperienceUp();
                 SetPlayerConfirmStat(i, false);
             }
-            turnStep = 14;
+            turnStep = 15;
+            StartCoroutine("Delay");    // 2초 후 turnStep 14가 됨
         }
         else if (turnStep == 14)
         {
@@ -495,7 +496,10 @@ public class BattleManager : NetworkBehaviour
                 turnStep = 1;
             }
         }
-
+        else if (turnStep == 15)
+        {
+            // 2초 후 turnStep 14로 넘어갑니다.
+        }
     }
 
     public void SetObjectPlayer(int objectTargetIndex)
@@ -846,5 +850,16 @@ public class BattleManager : NetworkBehaviour
         yield return new WaitForSeconds(timing);
         loadingPanel.SetActive(true);
         LobbyManager.s_Singleton.ServerReturnToLobby();
+    }
+
+    IEnumerator Delay()
+    {
+        if (turnStep != 15) yield break;
+        yield return new WaitForSeconds(2f);
+        for (int i = 0; i < 5; i++)
+        {
+            GetPlayers()[i].RpcOpenStatPanel();
+        }
+        turnStep = 14;
     }
 }
