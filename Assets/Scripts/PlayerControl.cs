@@ -464,13 +464,10 @@ public class PlayerControl : NetworkBehaviour
     public void Restored()
     {
         if (!isServer) return;
-        if (currentHealth > 0 && currentHealth <= 47)
+        if (currentHealth > 0)
         {
             currentHealth += 5;
-        }
-        else if (currentHealth <= 48)
-        {
-            currentHealth = 52;
+            // 최대 체력이 52인 것은 UpdateHealthAndStat()에서 처리한다.
         }
     }
 
@@ -538,6 +535,10 @@ public class PlayerControl : NetworkBehaviour
             currentHealth = 0;
             isDead = true;
         }
+        else if (currentHealth > 52)
+        {
+            currentHealth = 52;
+        }
         int HealthChange = displayedHealth - currentHealth;
 
         if (HealthChange < 0)
@@ -556,9 +557,12 @@ public class PlayerControl : NetworkBehaviour
             RpcDead(); //뒤짐
         }
         displayedHealth = currentHealth;
+
         statAttack = currentAttack;
         statAuthority = currentAuthority;
         statMentality = currentMentality;
+        experience = currentExperience;
+        //bm.RpcPrintLog(GetName() + "'s statAttack: " + statAttack);
     }
 
     public void UnveilFromExchangeLog()
@@ -703,9 +707,9 @@ public class PlayerControl : NetworkBehaviour
         {
             currentAuthority++;
             currentExperience -= 5;
+            CmdSetAuthority(currentAuthority);
+            CmdSetExperience(currentExperience);
         }
-        // TODO 경험치가 부족할 때 경고 메시지 띄우기
-        // TODO 권력이 99 이상일 때 경고 메시지 띄우기
     }
 
     /// <summary>
@@ -720,9 +724,9 @@ public class PlayerControl : NetworkBehaviour
         {
             currentAttack++;
             currentExperience -= 5;
+            CmdSetAttack(currentAttack);
+            CmdSetExperience(currentExperience);
         }
-        // TODO 경험치가 부족할 때 경고 메시지 띄우기
-        // TODO 공격력이 99 이상일 때 경고 메시지 띄우기
     }
 
     /// <summary>
@@ -737,6 +741,8 @@ public class PlayerControl : NetworkBehaviour
         {
             currentMentality++;
             currentExperience -= currentMentality;
+            CmdSetMentality(currentMentality);
+            CmdSetExperience(currentExperience);
         }
         // TODO 경험치가 부족할 때 경고 메시지 띄우기
         // TODO 정신력이 99 이상일 때 경고 메시지 띄우기
@@ -754,6 +760,10 @@ public class PlayerControl : NetworkBehaviour
         currentAttack = statAttack;
         currentAuthority = statAuthority;
         currentMentality = statMentality;
+        CmdSetExperience(currentExperience);
+        CmdSetAttack(currentAttack);
+        CmdSetAuthority(currentAuthority);
+        CmdSetMentality(currentMentality);
     }
 
     /// <summary>
@@ -1017,6 +1027,49 @@ public class PlayerControl : NetworkBehaviour
         bm.PlayerReady(GetPlayerIndex());
     }
 
+    /// <summary>
+    /// 서버에서 이 플레이어의 current 공격력을 attack으로 동기화합니다.
+    /// </summary>
+    /// <param name="attack"></param>
+    [Command]
+    private void CmdSetAttack(int attack)
+    {
+        currentAttack = attack;
+    }
+
+    /// <summary>
+    /// 서버에서 이 플레이어의 current 권력을 authority로 동기화합니다.
+    /// </summary>
+    /// <param name="authority"></param>
+    [Command]
+    private void CmdSetAuthority(int authority)
+    {
+        currentAuthority = authority;
+    }
+
+    /// <summary>
+    /// 서버에서 이 플레이어의 current 정신력을 mentality로 동기화합니다.
+    /// </summary>
+    /// <param name="mentality"></param>
+    [Command]
+    private void CmdSetMentality(int mentality)
+    {
+        currentMentality = mentality;
+    }
+
+    /// <summary>
+    /// 서버에서 이 플레이어의 current 경험치를 exp로 동기화합니다.
+    /// </summary>
+    /// <param name="exp"></param>
+    [Command]
+    private void CmdSetExperience(int exp)
+    {
+        currentExperience = exp;
+    }
+
+    /// <summary>
+    /// 서버에 이 플레이어가 능력치 변경을 확정했다는 신호를 보냅니다.
+    /// </summary>
     [Command]
     public void CmdConfirmStat()
     {

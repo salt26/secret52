@@ -492,6 +492,7 @@ public class BattleManager : NetworkBehaviour
                 for (int i = 0; i < 5; i++)
                 {
                     GetPlayers()[i].RpcEndStatDistribTime();
+                    GetPlayers()[i].UpdateHealthAndStat();
                 }
                 turnStep = 1;
             }
