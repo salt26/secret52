@@ -436,13 +436,11 @@ public class BattleManager : NetworkBehaviour
             }
             else
             {
-                //RpcPrintLog("Turn ends.");
-                turnPlayer += 1;
-                if (turnPlayer >= 5) turnPlayer = 0;
+                turnStep = 16;
+                StartCoroutine(Delay16(2f));    // 2초 후 turnStep 14가 됨
 
-                if (turnNum % 5 == 0) turnStep = 13;    // 한 사이클이 끝나서 능력치 분배 시간이 됨
-                else turnStep = 1;
-                //RpcPrintLog("turnStep 1(" + players[turnPlayer].GetName() + " turn starts)");
+                //RpcPrintLog("Turn ends.");
+                
             }
         }
         else if (turnStep == 8)
@@ -469,11 +467,11 @@ public class BattleManager : NetworkBehaviour
         {
             for (int i = 0; i < 5; i++)
             {
-                GetPlayers()[i].RpcExperienceUp();
+                GetPlayers()[i].ExperienceUp();
                 SetPlayerConfirmStat(i, false);
             }
             turnStep = 15;
-            StartCoroutine("Delay");    // 2초 후 turnStep 14가 됨
+            StartCoroutine(Delay15(2f));    // 2초 후 turnStep 14가 됨
         }
         else if (turnStep == 14)
         {
@@ -491,15 +489,21 @@ public class BattleManager : NetworkBehaviour
             {
                 for (int i = 0; i < 5; i++)
                 {
+                    GetPlayers()[i].UpdateStat();
                     GetPlayers()[i].RpcEndStatDistribTime();
-                    GetPlayers()[i].UpdateHealthAndStat();
                 }
                 turnStep = 1;
             }
         }
         else if (turnStep == 15)
         {
-            // 2초 후 turnStep 14로 넘어갑니다.
+            // Delay15 코루틴에 있는 동안 turnStep은 15입니다.
+            // turnStep 13에서 turnStep 14로 넘어가는 경우에 해당합니다.
+        }
+        else if (turnStep == 16)
+        {
+            // Delay16 코루틴에 있는 동안 turnStep은 16입니다.
+            // turnStep 7에서 turnStep 1 또는 turnStep 13으로 넘어가는 경우에 해당합니다.
         }
     }
 
@@ -853,14 +857,27 @@ public class BattleManager : NetworkBehaviour
         LobbyManager.s_Singleton.ServerReturnToLobby();
     }
 
-    IEnumerator Delay()
+    IEnumerator Delay15(float second)
     {
         if (turnStep != 15) yield break;
-        yield return new WaitForSeconds(2f);
+        yield return new WaitForSeconds(second);
+
         for (int i = 0; i < 5; i++)
         {
             GetPlayers()[i].RpcOpenStatPanel();
         }
         turnStep = 14;
+    }
+
+    IEnumerator Delay16(float second) {
+        if (turnStep != 16) yield break;
+        yield return new WaitForSeconds(second);
+
+        turnPlayer += 1;
+        if (turnPlayer >= 5) turnPlayer = 0;
+
+        if (turnNum % 5 == 0) turnStep = 13;    // 한 사이클이 끝나서 능력치 분배 시간이 됨
+        else turnStep = 1;
+        //RpcPrintLog("turnStep 1(" + players[turnPlayer].GetName() + " turn starts)");
     }
 }

@@ -68,6 +68,8 @@ public class PlayerControl : NetworkBehaviour
     public GameObject attackUIText;
     public GameObject authorityUIText;
     public GameObject tooltipBox;
+    public GameObject corruptedImage;
+    public GameObject lightedImage;
     private bool isMarked; //마크가 되었는지 여부
     private bool isPlayingCannotRequest;
 
@@ -80,6 +82,7 @@ public class PlayerControl : NetworkBehaviour
     private bool isStart;
     private bool isThinking;    // 인공지능의 생각 전 딜레이 동안 true가 됨
     private bool isCardDragging;  // 큰 카드를 드래그하는 동안 true가 됨
+    private bool isShowingChange;   // 체력 변화량을 표시하는 애니메이션이 실행될 동안 true가 됨
 
     void Awake () {
         // bm은 Awake에서 아직 로딩되지 않았을 수 있음. 즉, BattleManager.Awake가 PlayerControl.Awake보다 늦게 실행될 수 있음. 
@@ -111,6 +114,7 @@ public class PlayerControl : NetworkBehaviour
         isStart = false;
         isThinking = false;
         isCardDragging = false;
+        isShowingChange = false;
         statAttack = 4;     // 초기값 4로 설정
         statAuthority = 1;  // 초기값 1로 설정
         statMentality = 6;  // 초기값 6으로 설정
@@ -265,12 +269,13 @@ public class PlayerControl : NetworkBehaviour
             Destroy(GameObject.Find("TargetMark(Clone)"));
 
         HealthBar.sizeDelta = new Vector2(displayedHealth * 100f / maxHealth, HealthBar.sizeDelta.y); // HealthBar 변경 -> displayedHealth 기준으로 계산하도록 수정
-        healthText.GetComponent<Text>().text = displayedHealth.ToString();
+        if (!isShowingChange) healthText.GetComponent<Text>().text = displayedHealth.ToString();
         attackUIText.GetComponent<Text>().text = statAttack.ToString();
         authorityUIText.GetComponent<Text>().text = statAuthority.ToString();
 
         /* 툴팁을 표시하기 위한 코드입니다. */
-        if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging && !StatPanelUI.statPanelUI.GetIsOpen() && !LogPanelUI.logPanelUI.GetIsOpen())
+        if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging
+            && !StatPanelUI.statPanelUI.GetIsOpen() && !LogPanelUI.logPanelUI.GetIsOpen())
         {
             List<Card> hand = bm.GetPlayerHand(this);
             Ray ray = GetComponentInChildren<Camera>().ScreenPointToRay(Input.mousePosition);
@@ -544,25 +549,52 @@ public class PlayerControl : NetworkBehaviour
         if (HealthChange < 0)
         {
             //bm.RpcPrintLog(playerName + " is Healed.");
-            RpcHealed(); //힐을 받음
+            RpcHealed(); // 힐을 받음
         }
         else if (HealthChange > 0 && isDead == false)
         {
             //bm.RpcPrintLog(playerName + " is Damaged.");
-            RpcDamaged(); //데미지를 받음
+            RpcDamaged(); // 데미지를 받음
         }
         else if (isDead == true)
         {
             //bm.RpcPrintLog(playerName + " is Dead.");
-            RpcDead(); //뒤짐
+            RpcDead(); // 뒤짐
         }
         displayedHealth = currentHealth;
+        // TODO
+        if (HealthChange != 0)
+        {
+            RpcChanged(HealthChange);
+        }
 
+        if (statAttack < currentAttack && statMentality > currentMentality)
+        {
+            RpcCorrupted(); // 타락함
+        }
+
+        if (statAuthority < currentAuthority)
+        {
+            RpcLighted(); // 빛 효과를 받음
+        }
         statAttack = currentAttack;
         statAuthority = currentAuthority;
         statMentality = currentMentality;
         experience = currentExperience;
         //bm.RpcPrintLog(GetName() + "'s statAttack: " + statAttack);
+    }
+
+    /// <summary>
+    /// 능력치 분배 시간이 끝났을 때 변경사항을 적용하는 함수입니다.
+    /// </summary>
+    public void UpdateStat()
+    {
+        if (!isServer) return;
+        statAttack = currentAttack;
+        statAuthority = currentAuthority;
+        statMentality = currentMentality;
+        experience = currentExperience;
+        if (isAI && isThinking) isThinking = false;
     }
 
     public void UnveilFromExchangeLog()
@@ -696,6 +728,17 @@ public class PlayerControl : NetworkBehaviour
     }
 
     /// <summary>
+    /// 경험치를 현재 정신력만큼 상승시키는 함수입니다.
+    /// </summary>
+    public void ExperienceUp()
+    {
+        if (!isServer) return;
+        currentExperience += statMentality;
+        if (currentExperience > 9999) currentExperience = 9999;
+        experience = currentExperience;
+    }
+
+    /// <summary>
     /// 능력치 분배 시에 경험치를 5 소모하여 권력을 1 올리는 함수입니다.
     /// 클라이언트에서만 호출 가능합니다.
     /// TODO 네트워크 상에서 잘 작동하는지 확인하기
@@ -744,8 +787,6 @@ public class PlayerControl : NetworkBehaviour
             CmdSetMentality(currentMentality);
             CmdSetExperience(currentExperience);
         }
-        // TODO 경험치가 부족할 때 경고 메시지 띄우기
-        // TODO 정신력이 99 이상일 때 경고 메시지 띄우기
     }
 
     /// <summary>
@@ -785,18 +826,6 @@ public class PlayerControl : NetworkBehaviour
     }
 
     /// <summary>
-    /// 경험치를 현재 정신력만큼 상승시키는 함수입니다.
-    /// </summary>
-    [ClientRpc]
-    public void RpcExperienceUp()
-    {
-        if (!isLocalPlayer) return;
-        currentExperience += statMentality;
-        if (currentExperience > 9999) currentExperience = 9999;
-        experience = currentExperience;
-    }
-
-    /// <summary>
     /// 능력치 패널이 자동으로 열리도록 하는 함수입니다.
     /// </summary>
     [ClientRpc]
@@ -810,16 +839,12 @@ public class PlayerControl : NetworkBehaviour
     }
 
     /// <summary>
-    /// 능력치 분배 시간이 끝났을 때 변경사항을 적용하는 함수입니다.
+    /// 능력치 분배 시간이 끝났을 때 능력치 패널을 자동으로 닫아주는 함수입니다.
     /// </summary>
     [ClientRpc]
     public void RpcEndStatDistribTime()
     {
         if (!isLocalPlayer) return;
-        experience = currentExperience;
-        statAttack = currentAttack;
-        statAuthority = currentAuthority;
-        statMentality = currentMentality;
         if (spUI != null)
         {
             spUI.ClosePanel();
@@ -1537,6 +1562,11 @@ public class PlayerControl : NetworkBehaviour
             statusUI.SetText(bm.GetTurnPlayer().GetName() + "이(가) 빙결되어 이번 턴에 교환할 수 없습니다.");
             statusUI.PlainText();
         }
+        else if (ts == 7 || ts == 16)
+        {
+            statusUI.SetText("마법 시전!");
+            statusUI.PlainText();
+        }
         else if (ts == 8)
         {
             for (int j = 0; j < 5; j++)
@@ -1636,6 +1666,24 @@ public class PlayerControl : NetworkBehaviour
         StartCoroutine("FreezeAnimation");
     }
 
+    [ClientRpc]
+    public void RpcCorrupted()
+    {
+        StartCoroutine("CorruptedAnimation");
+    }
+
+    [ClientRpc]
+    public void RpcLighted()
+    {
+        StartCoroutine("LightedAnimation");
+    }
+
+    [ClientRpc]
+    public void RpcChanged(int change)
+    {
+        StartCoroutine(ChangedAnimation(change));
+    }
+
     IEnumerator HealedAnimation()
     {
         //Log("HealedAnimation");
@@ -1719,6 +1767,77 @@ public class PlayerControl : NetworkBehaviour
         yield return null;
     }
 
+    IEnumerator CorruptedAnimation()
+    {
+        int frame = 40;
+        attackUIText.GetComponent<Text>().color = new Color(0.475f, 0.208f, 0.871f);
+        attackUIText.GetComponent<Text>().fontSize = 19;
+        for (int i = 0; i < frame; i++)
+        {
+            corruptedImage.GetComponent<Image>().color = Color.Lerp(new Color(1f, 1f, 1f, 0f), new Color(1f, 1f, 1f, 0.9f), i / (float)frame);
+            yield return new WaitForFixedUpdate();
+        }
+        for (int i = 0; i < frame; i++)
+        {
+            corruptedImage.GetComponent<Image>().color = Color.Lerp(new Color(1f, 1f, 1f, 0.9f), new Color(1f, 1f, 1f, 0f), i / (float)frame);
+            yield return new WaitForFixedUpdate();
+        }
+        corruptedImage.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0f);
+        attackUIText.GetComponent<Text>().color = Color.black;
+        attackUIText.GetComponent<Text>().fontSize = 15;
+    }
+
+    IEnumerator LightedAnimation()
+    {
+        int frame = 30, frame2 = 30;
+        authorityUIText.GetComponent<Text>().color = new Color(1f, 1f, 0.184f);
+        authorityUIText.GetComponent<Text>().fontSize = 19;
+        for (int i = 0; i < frame; i++)
+        {
+            lightedImage.GetComponent<Image>().color = Color.Lerp(new Color(1f, 1f, 1f, 0f), new Color(1f, 1f, 1f, 0.9f), i / (float)frame);
+            lightedImage.GetComponent<RectTransform>().localRotation = Quaternion.Lerp(Quaternion.Euler(0f, 0f, 0f), Quaternion.Euler(0f, 0f, 150f), i / (float)frame);
+            yield return new WaitForFixedUpdate();
+        }
+        authorityUIText.GetComponent<Text>().color = Color.black;
+        for (int i = 0; i < frame2; i++)
+        {
+            lightedImage.GetComponent<RectTransform>().localRotation = Quaternion.Lerp(Quaternion.Euler(0f, 0f, 150f), Quaternion.Euler(0f, 0f, 240f), i / (float)frame2);
+            yield return new WaitForFixedUpdate();
+        }
+        authorityUIText.GetComponent<Text>().color = new Color(1f, 1f, 0.184f);
+        for (int i = 0; i < frame; i++)
+        {
+            lightedImage.GetComponent<Image>().color = Color.Lerp(new Color(1f, 1f, 1f, 0.9f), new Color(1f, 1f, 1f, 0f), i / (float)frame);
+            lightedImage.GetComponent<RectTransform>().localRotation = Quaternion.Lerp(Quaternion.Euler(0f, 0f, 240f), Quaternion.Euler(0f, 0f, 360f), i / (float)frame);
+            yield return new WaitForFixedUpdate();
+        }
+        lightedImage.GetComponent<Image>().color = new Color(1f, 1f, 1f, 0f);
+        lightedImage.GetComponent<RectTransform>().localRotation = Quaternion.Euler(0f, 0f, 0f);
+        authorityUIText.GetComponent<Text>().color = Color.black;
+        authorityUIText.GetComponent<Text>().fontSize = 15;
+    }
+
+    IEnumerator ChangedAnimation(int change)
+    {
+        isShowingChange = true;
+        string t = "";
+        if (change > 0) // 피해를 받았을 때
+        {
+            t = "-";
+            t += change.ToString();
+        }
+        else if (change < 0)    // 회복되었을 때
+        {
+            t = "+";
+            t += (-change).ToString();
+        }
+        healthText.GetComponent<Text>().text = t;
+        healthText.GetComponent<Text>().fontSize = 19;
+        yield return new WaitForSeconds(1.5f);
+        healthText.GetComponent<Text>().fontSize = 15;
+        isShowingChange = false;
+    }
+
     /*
      * 여기서부터는 AI(인공지능) 코드입니다.
      */
@@ -1749,9 +1868,26 @@ public class PlayerControl : NetworkBehaviour
     IEnumerator AIStatDistribute()
     {
         // TODO 능력치를 판단하여 알아서 올리게 하자.
+        while (currentExperience >= Mathf.Min(5, currentMentality + 1))
+        {
+            int r = Random.Range(0, 3);
+            switch (r)
+            {
+                case 0:
+                    AIAttackUp();
+                    break;
+                case 1:
+                    AIAuthorityUp();
+                    break;
+                case 2:
+                    AIMentalityUp();
+                    break;
+            }
+            yield return null;
+        }
         bm.SetPlayerConfirmStat(GetPlayerIndex(), true);
         yield return null;
-        isThinking = false;
+        // isThinking은 모든 플레이어가 능력치를 확정하고 나서 false가 됩니다.
     }
 
     /// <summary>
@@ -2762,6 +2898,33 @@ public class PlayerControl : NetworkBehaviour
         for (int i = 0; i < score; i++)
         {
             box.Add(opponentPlayerIndex + myCard);
+        }
+    }
+
+    public void AIAttackUp()
+    {
+        if (currentAttack < 99 && currentExperience >= 5)
+        {
+            currentAttack++;
+            currentExperience -= 5;
+        }
+    }
+    
+    public void AIAuthorityUp()
+    {
+        if (currentAuthority < 99 && currentExperience >= 5)
+        {
+            currentAuthority++;
+            currentExperience -= 5;
+        }
+    }
+
+    public void AIMentalityUp()
+    {
+        if (currentMentality < 99 && currentExperience >= currentMentality + 1)
+        {
+            currentMentality++;
+            currentExperience -= currentMentality;
         }
     }
 }

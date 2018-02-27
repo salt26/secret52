@@ -142,7 +142,7 @@ public class Pusher : MonoBehaviour
 
     public IEnumerator AfterSmallMove()
     {
-        while (!ExchangeComplete || bm == null || bm.GetTurnStep() < 6 || bm.GetTurnStep() > 7)
+        while (!ExchangeComplete || bm == null || !(bm.GetTurnStep() == 6 || bm.GetTurnStep() == 7 || bm.GetTurnStep() == 16))
         {
             yield return null;
         }
