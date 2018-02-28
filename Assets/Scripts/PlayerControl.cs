@@ -1166,6 +1166,18 @@ public class PlayerControl : NetworkBehaviour
         isAI = AI;
     }
 
+    /*
+    public void SetThisPlayerToAI(NetworkConnection conn)
+    {
+        if (!isServer) return;
+        SetAI(true);
+        RpcSetAI(true);
+        //GetComponent<NetworkIdentity>().localPlayerAuthority = false;
+        GetComponent<NetworkIdentity>().RemoveClientAuthority(conn);
+        SetName(GetName() + "(AI)");
+    }
+    */
+
     public void SetCardDragging(bool drag)
     {
         isCardDragging = drag;
@@ -2927,4 +2939,29 @@ public class PlayerControl : NetworkBehaviour
             currentExperience -= currentMentality;
         }
     }
+    
+    /*
+    public void CopyPlayerControl(PlayerControl old)
+    {
+        if (!isServer || old == null) return;
+        currentHealth = old.currentHealth;    // 현재 남은 체력(실시간으로 변화, 외부 열람 불가)
+        currentAttack = old.currentAttack;    // 현재 공격력(실시간으로 변화, 능력치 패널을 제외한 곳에서 열람 불가)
+        currentAuthority = old.currentAuthority;    // 현재 권력(실시간으로 변화, 능력치 패널을 제외한 곳에서 열람 불가)
+        currentMentality = old.currentMentality;    // 현재 권력(실시간으로 변화, 능력치 패널을 제외한 곳에서 열람 불가)
+        currentExperience = old.currentExperience;   // 현재 남은 경험치(실시간으로 변화, 능력치 패널을 제외한 곳에서 열람 불가)
+        maxHealth = old.maxHealth;      // 최대 체력(초기 체력)
+        isDead = old.isDead;  // 사망 여부(true이면 사망)
+        displayedHealth = old.displayedHealth;                      // 현재 남은 체력(턴이 끝날 때만 변화, 외부 열람 가능)
+        statAttack = old.statAttack;      // 현재 공격력(외부 열람 가능)
+        statAuthority = old.statAuthority;   // 현재 권력(외부 열람 가능)
+        statMentality = old.statMentality;   // 현재 정신력(외부 열람 가능)
+        experience = old.experience;      // 현재 남은 경험치
+        isFreezed = old.isFreezed;                   // 빙결 여부(true이면 다음 한 번의 내 턴에 교환 불가)
+
+        unveiled = old.unveiled;
+        // unveiled의 인덱스는 (플레이어 번호 - 1)이고, 그 값은 해당 플레이어의 속성이 이 플레이어에게 공개되었는지 여부이다.
+        // 자기 자신의 속성은 항상 공개되어 있는 것으로 취급한다.
+        objectTarget = old.objectTarget;
+    }
+    */
 }

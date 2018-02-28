@@ -260,7 +260,7 @@ public class BattleManager : NetworkBehaviour
         {
             if (turnStep > 0 && players[i] == null) {
                 // 중간에 클라이언트 한 명의 접속이 끊긴 경우 대전을 종료한다.
-                StartCoroutine(ReturnToLobby(5f));
+                StartCoroutine(ReturnToLobby(5f, false));
                 turnStep = 12;
             }
         }
@@ -431,7 +431,7 @@ public class BattleManager : NetworkBehaviour
                         GetPlayers()[i].Unveil(j);
                     }
                 }
-                StartCoroutine(ReturnToLobby(13f));
+                StartCoroutine(ReturnToLobby(13f, true));
                 turnStep = 8;
             }
             else
@@ -850,10 +850,11 @@ public class BattleManager : NetworkBehaviour
     }
     */
 
-    IEnumerator ReturnToLobby(float timing)
+    IEnumerator ReturnToLobby(float timing, bool normal)
     {
         yield return new WaitForSeconds(timing);
         loadingPanel.SetActive(true);
+        if (!normal) NetworkServer.DisconnectAll();
         LobbyManager.s_Singleton.ServerReturnToLobby();
     }
 

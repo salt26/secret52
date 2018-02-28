@@ -394,14 +394,116 @@ namespace Prototype.NetworkLobby
         }
 
         /*
+        public override void ServerChangeScene(string sceneName)
+        {
+            if (sceneName == this.lobbyScene)
+            {
+                foreach (NetworkLobbyPlayer lobbySlot in this.lobbySlots)
+                {
+                    if (!((Object) lobbySlot == (Object) null))
+                    {
+                        NetworkIdentity component = lobbySlot.GetComponent<NetworkIdentity>();
+                        if (NetworkServer.active)
+                        {
+                            lobbySlot.GetComponent<NetworkLobbyPlayer>().readyToBegin = false;
+                            NetworkServer.ReplacePlayerForConnection(component.connectionToClient, lobbySlot.gameObject, component.playerControllerId);
+                        }
+                    }
+                }
+            }
+            base.ServerChangeScene(sceneName);
+        }
+        */
+
+        /*
         // When client is disconnected, server executes this and all players return to lobby.
         public override void OnServerDisconnect(NetworkConnection conn)
         {
-            base.OnServerDisconnect(conn);
-            if (SceneManager.GetActiveScene().name == "Battle")
+            Debug.Log("OnServerDisconnect");
+            if (conn != null && SceneManager.GetActiveScene().name == "Battle" && BattleManager.bm != null)
             {
-                s_Singleton.ServerReturnToLobby();
-            }
+                PlayerControl oldPlayer = null;
+                int index = -1;
+                //GameObject willBeRemoved = null;
+                foreach (NetworkInstanceId nii in conn.clientOwnedObjects)
+                {
+                    bool isPlayerControl = false;
+                    for (int i = 0; i < 5; i++)
+                    {
+                        if (nii.Value == BattleManager.bm.GetPlayers()[i].GetComponent<NetworkIdentity>().netId.Value)
+                        {
+                            Debug.Log("Set " + BattleManager.bm.GetPlayers()[i].GetName() + " to AI.");
+                            oldPlayer = BattleManager.bm.GetPlayers()[i];
+                            index = i;
+                            isPlayerControl = true;
+                            var newPlayer = Instantiate(gamePlayerPrefab, oldPlayer.GetComponent<Transform>().position, oldPlayer.GetComponent<Transform>().rotation);
+                            newPlayer.GetComponent<PlayerControl>().SetAI(true);
+                            newPlayer.GetComponent<PlayerControl>().playerName = oldPlayer.GetName() + "(AI)";
+                            newPlayer.GetComponent<PlayerControl>().color = oldPlayer.color;
+                            newPlayer.GetComponent<NetworkIdentity>().localPlayerAuthority = false;
+                            NetworkServer.Spawn(newPlayer);
+                            newPlayer.GetComponent<PlayerControl>().RpcSetAI(true);
+                            newPlayer.GetComponent<PlayerControl>().CopyPlayerControl(oldPlayer);
+                            break;
+                        }
+                    }
+                    if (isPlayerControl) break;
+
+                    /*
+                    if (!isPlayerControl)
+                    {
+                        foreach (LobbyPlayer p in lobbySlots)
+                        {
+                            if (p.netId.Value == nii.Value)
+                            {
+                                willBeRemoved = p.gameObject;
+                                break;
+                            }
+                        }
+                    }
+                    */
+
+        /*
+    }
+    */
+
+        /*
+        foreach (PlayerController playerController in conn.playerControllers)
+        {
+            Debug.Log(playerController.gameObject.name);
+            if (playerController.gameObject.GetComponent<PlayerControl>() != null)
+                Debug.Log(playerController.gameObject.GetComponent<PlayerControl>().GetName());
+
+        }
+        //NetworkServer.ReplacePlayerForConnection(conn, Instantiate(gamePlayerPrefab), 0);
+        //BattleManager.bm.players[index] = pc;
+        foreach (NetworkInstanceId nii in conn.clientOwnedObjects)
+        {
+            Debug.Log(nii.ToString());
+        }
+        //if (willBeRemoved != null) Destroy(willBeRemoved);
+        */
+
+        /*
+        base.OnServerDisconnect(conn);
+        //if (pc != null) pc.SetThisPlayerToAI(conn);
+        if (s_Singleton.numPlayers <= 0) s_Singleton.ServerReturnToLobby();
+    } else if (SceneManager.GetActiveScene().name == "Lobby")
+    {
+        base.OnServerDisconnect(conn);
+    }
+    //base.OnServerDisconnect(conn);
+    Debug.Log("The number of remaining players: " + s_Singleton.numPlayers);
+}
+*/
+
+        /*
+        public override void OnServerRemovePlayer(NetworkConnection conn, PlayerController player)
+        {
+            Debug.Log("OnServerRemovePlayer");
+            if (player.gameObject.GetComponent<PlayerControl>() != null)
+                player.gameObject.GetComponent<PlayerControl>().SetThisPlayerToAI(conn);
+            //base.OnServerRemovePlayer(conn, player);
         }
         */
 
