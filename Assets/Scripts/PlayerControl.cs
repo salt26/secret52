@@ -38,6 +38,7 @@ public class PlayerControl : NetworkBehaviour
     private Card playCardAI;                        // 인공지능이 낼 카드
     private int statMntlMaxAI = 0;                  // 인공지능이 처음에 한 번 달성하려고 하는 정신력의 최대치
     private int statMntlMinAI = 0;                  // 인공지능이 유지하려고 하는 정신력의 최소치
+    private int statTactic = -1;                    // 인공지능이 권력과 공격력 중 주력으로 올릴 능력치를 결정하는 변수
 
     private RectTransform HealthBar;                // HP UI
     [SerializeField] private GameObject playerCamera;
@@ -1134,6 +1135,31 @@ public class PlayerControl : NetworkBehaviour
     }
 
     /// <summary>
+    /// 속성의 영어 이름(카드 이름과 일치)을 반환합니다.
+    /// 잘못된 입력이 들어오면 "?"을 반환합니다.
+    /// </summary>
+    /// <param name="element">속성 번호</param>
+    /// <returns></returns>
+    private string GetElementName(int element)
+    {
+        switch (element)
+        {
+            case 0:
+                return "Fire";
+            case 1:
+                return "Water";
+            case 2:
+                return "Electricity";
+            case 3:
+                return "Wind";
+            case 4:
+                return "Poison";
+            default:
+                return "?";
+        }
+    }
+
+    /// <summary>
     /// 이 플레이어가 playerIndex 플레이어의 속성을 알아냈는지 여부를 반환합니다.
     /// </summary>
     /// <param name="playerIndex"></param>
@@ -1163,9 +1189,21 @@ public class PlayerControl : NetworkBehaviour
         return l;
     }
 
+    /// <summary>
+    /// AI가 true이면 이 플레이어를 인공지능 플레이어로 설정하는 함수입니다.
+    /// 인공지능으로 설정되면 능력치 분배 전략이 함께 결정됩니다.
+    /// </summary>
+    /// <param name="AI"></param>
     public void SetAI(bool AI)
     {
         isAI = AI;
+        if (!AI)
+        {
+            statMntlMaxAI = 0;
+            statMntlMinAI = 0;
+            statTactic = -1;
+            return;
+        }
 
         List<int> randomBox = new List<int>();
         randomBox.Add(6);
@@ -1210,6 +1248,35 @@ public class PlayerControl : NetworkBehaviour
             randomBox.Add(i);
         }
         statMntlMinAI = randomBox[Random.Range(0, randomBox.Count)];
+
+        randomBox.Clear();
+        for (int i = 0; i < 5; i++)
+        {
+            randomBox.Add(0);
+        }
+        for (int i = 0; i < 8 - statMntlMinAI; i += 2)
+        {
+            // 정신력 최소 유지치가 낮으면 공격력 테크를 탈 가능성이 높아진다.
+            randomBox.Add(1);
+        }
+        if (statMntlMaxAI < 7) randomBox.Add(1);
+        for (int i = 0; i < 2; i++)
+        {
+            randomBox.Add(1);
+        }
+        for (int i = 0; i < statMntlMinAI - 5; i += 2)
+        {
+            // 정신력 최소 유지치가 높으면 권력 테크를 탈 가능성이 높아진다.
+            randomBox.Add(2);
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            randomBox.Add(2);
+        }
+        statTactic = randomBox[Random.Range(0, randomBox.Count)];
+        // statTactic이 0이면 권력과 공격력을 랜덤으로 반반씩 올린다.
+        // 1이면 공격력 위주로 올린다.
+        // 2이면 권력 위주로 올린다.
     }
 
     /*
@@ -1925,7 +1992,7 @@ public class PlayerControl : NetworkBehaviour
 
     IEnumerator AIStatDistribute()
     {
-        // TODO 능력치를 판단하여 알아서 올리게 하자.
+        // 아래 주석의 코드는 아몰랑 란듐(Random) 인공지능
         /*
         while (currentExperience >= Mathf.Min(5, currentMentality + 1))
         {
@@ -2024,9 +2091,11 @@ public class PlayerControl : NetworkBehaviour
             {
                 if (i == GetPlayerIndex()) continue;
                 if (bm.GetPlayers()[i].GetStatAuthority() == bm.GetLeastAuthority()
-                    && playerClass[i] >= 10)
+                    && (playerClass[i] / 100) % 10 == 1
+                    && bm.GetLeastAuthority() != bm.GetMostAuthority()
+                    && bm.GetSecondLeastAuthority() != bm.GetMostAuthority())
                 {
-                    // 내가 권력 1등인데 권력 꼴지가 나를 노리는 천적이면
+                    // 내가 권력 1등인데 권력 꼴지가 나를 노리는 천적이고 권력 계층이 3단계 이상으로 분화되어 있으면
                     // 권력을 올리지 말아야 한다.
                     while (currentExperience >= 5)
                     {
@@ -2044,9 +2113,11 @@ public class PlayerControl : NetworkBehaviour
             {
                 if (i == GetPlayerIndex()) continue;
                 if (bm.GetPlayers()[i].GetStatAuthority() == bm.GetMostAuthority()
-                    && playerClass[i] % 10 == 0)
+                    && playerClass[i] % 10 == 0 
+                    && bm.GetLeastAuthority() != bm.GetMostAuthority()
+                    && bm.GetSecondLeastAuthority() != bm.GetMostAuthority())
                 {
-                    // 내가 권력 꼴지인데 권력 1등이 나의 목표인 것이 확실하면
+                    // 내가 권력 꼴지인데 권력 1등이 나의 목표인 것이 확실하고 권력 계층이 3단계 이상으로 분화되어 있으면
                     // 권력을 올리지 말아야 한다. (리스크가 큰 전략이기는 하다.)
                     while (currentExperience >= 5)
                     {
@@ -2058,20 +2129,57 @@ public class PlayerControl : NetworkBehaviour
             }
         }
 
-        // 위의 경우가 아니면 공격력과 권력 중 아무거나 올린다.
+        // 위의 경우가 아니면 공격력과 권력 중 자신의 전략에 맞게 올린다.
+        // 권력 계층이 2단계 이하로만 분화되어 있어 당장 권력이 의미가 없는 경우 공격력을 올릴 확률이 높아진다.
         while (currentExperience >= 5)
         {
-            int r = Random.Range(0, 2);
+            List<int> randomBox = new List<int>();
+            
+            randomBox.Add(1); // 공격력
+            randomBox.Add(1);
+            randomBox.Add(1);
+
+            if (statTactic == 1)
+            {
+                // 공격력 테크
+                randomBox.Add(1);
+                randomBox.Add(1);
+                randomBox.Add(1);
+                randomBox.Add(1);
+            }
+            else if (statTactic == 2)
+            {
+                // 권력 테크
+                randomBox.Add(0); // 권력
+                randomBox.Add(0);
+                randomBox.Add(0);
+                randomBox.Add(0);
+            }
+
+            randomBox.Add(0);
+            if (bm.GetLeastAuthority() != bm.GetMostAuthority()
+                && bm.GetSecondLeastAuthority() != bm.GetMostAuthority())
+            {
+                randomBox.Add(0);
+                randomBox.Add(0);
+            }
+
+            randomBox.Add(2);   // 경험치 이월
+
+            int r = randomBox[Random.Range(0, randomBox.Count)];
             switch (r)
             {
                 case 0:
-                    AIAttackUp();
+                    AIAuthorityUp();
                     break;
                 case 1:
-                    AIAuthorityUp();
+                    AIAttackUp();
+                    break;
+                default:
                     break;
             }
             yield return null;
+            if (r == 2) break;
         }
 
         bm.SetPlayerConfirmStat(GetPlayerIndex(), true);
@@ -2183,6 +2291,7 @@ public class PlayerControl : NetworkBehaviour
                 r = Random.Range(0, 5);
                 objectTarget = bm.GetPlayers()[r];
             } while (objectTarget == null || objectTarget.Equals(this) || !CanRequestExchange(r));
+            
         }
         /*
         else
@@ -2193,9 +2302,6 @@ public class PlayerControl : NetworkBehaviour
             AIScoreBehavior(myHand[0].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
             AIScoreBehavior(myHand[1].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
         }
-        */
-        // TODO 랜덤 말고 인공지능으로 고치기
-        /*
         string lottery = decisionBox[Random.Range(0, decisionBox.Count)];
         bm.RpcPrintLog("lottery is " + lottery + ".");
         if (opponent == null)
@@ -2207,7 +2313,9 @@ public class PlayerControl : NetworkBehaviour
         else if (myHand[1].GetCardName() == lottery) playCardAI = myHand[1];
         else Debug.LogError("lottery is invalid.");
         */
+        // TODO 랜덤 말고 인공지능으로 고치기
         playCardAI = myHand[Random.Range(0, 2)];
+        
     }
 
     /* 
@@ -2219,11 +2327,13 @@ public class PlayerControl : NetworkBehaviour
      * 2 : 속성을 모르지만 천적이 아닌 상대,
      * 10: 자신의 목표이면서 천적인 상대,
      * 11: 자신의 목표는 아니지만 천적인 상대,
-     * 12: 속성을 모르지만 천적인 상대
+     * 12: 속성을 모르지만 천적인 상대 (초기값)
+     * 100, 101, 102, 110, 111, 112도 있음
      * 
      * 짝수: 목표이거나 속성을 모르는 상대
      * 홀수: 목표가 아닌 상대
-     * 10 이상: 천적인 상대
+     * 십의 자리 숫자가 1: 천적인 상대
+     * 100 이상: 내 속성을 알고 있는 상대
      */
     /// <summary>
     /// 인공지능이 자신을 목표로 하는 플레이어들을 추정하게 하는 함수입니다. 플레이어들을 분류한 정보를 목록으로 반환합니다.
@@ -2373,6 +2483,8 @@ public class PlayerControl : NetworkBehaviour
             else
             {
                 int c = 0;
+
+                if (hasEnemyKnowMe[i]) c += 100;                                    // 상대가 내 정체를 알고 있음
                 if (isEnemy.IndexOf(i) != -1) c += 10;                              // 천적
 
                 if (!GetUnveiled(i)) c += 2;                                        // 자신의 목표인지 모름
@@ -2395,7 +2507,12 @@ public class PlayerControl : NetworkBehaviour
         List<string> handName = new List<string>();
         for (int i = 0; i < 10; i++)
         {
-            handName.Add("?");
+            if (bm.GetCardInPosition(i).GetCardCode() >= 5)
+            {
+                // 공개된 카드
+                handName.Add(bm.GetCardInPosition(i).GetCardName());
+            }
+            else handName.Add("?"); // 비공개된 공격 카드
         }
 
         for (int i = 0; i < 5; i++)
@@ -2410,54 +2527,21 @@ public class PlayerControl : NetworkBehaviour
             // i번째 인덱스를 갖는 플레이어가 참여한 마지막 교환(빙결된 턴 제외)을 찾는다.
             for (int j = exc.Count - 1; j >= 0; j--)
             {
-                // 빙결된 턴은 마지막 교환으로 취급하지 않는다. 빙결 효과가 나타났다고 해서 그때까지 빙결 카드를 들고 있다고는 보장할 수 없다.
-                if (exc[j].GetIsFreezed())
+                if (exc[j].GetTurnPlayer().GetPlayerIndex() == i)
                 {
-                    // 빙결된 턴에 피해를 받으면 그 플레이어는 폭탄을 들고 있는 것이 확실하다.
-                    if (exc[j].GetTurnPlayer().GetPlayerIndex() == i && exc[j].GetTurnPlayerHealthVariation() == -1)
-                    {
-                        handName[2 * i] = "Bomb";
-                    }
-                    continue;
-                }
-                else if (exc[j].GetTurnPlayer().GetPlayerIndex() == i)
-                {
-                    // 마지막 교환에서 체력이 회복된 경우 치유 카드를 받은 것이 확실하다.
-                    if (exc[j].GetTurnPlayerHealthVariation() == 1)
+                    // 상대의 속성을 알고 있고 그 상대가 자신 속성의 공격을 받은 것이 확실한 경우
+                    // (상대의 교환 전 체력이 51 이상이고 생명 카드를 낸 경우에는 교환 로그만으로 알 수 없다. 교환 대상의 공격력이 기록되지 않기 때문이다. 최소 공격력 4 기준이다.)
+                    if (GetUnveiled(i) && ((exc[j].GetTurnPlayerHealthVariation() == -2 && !exc[j].GetTurnPlayerCard().Equals("Life"))
+                        || (exc[j].GetTurnPlayerHealth() < 50 && exc[j].GetTurnPlayerHealthVariation() == 3 && exc[j].GetTurnPlayerCard().Equals("Life"))
+                        || (exc[j].GetTurnPlayerHealth() == 50 && exc[j].GetTurnPlayerHealthVariation() == 2 && exc[j].GetTurnPlayerCard().Equals("Life"))))
                     {
                         if (handName[2 * i] == "?")
                         {
-                            handName[2 * i] = "Heal";
-                            handName[2 * i + 1] = "NoBomb";
-                        }
-                        else if (handName[2 * i] == "Bomb")
-                        {
-                            // 폭탄을 들고 있을 수 없다.
-                            Log("How do you have Bomb card?");
-                            handName[2 * i] = "Heal";
-                            handName[2 * i + 1] = "NoBomb";
+                            handName[2 * i] = GetElementName(bm.GetPlayerElement(i));
                         }
                         else
                         {
-                            handName[2 * i + 1] = "Heal";
-                            break;
-                        }
-                    }
-                    // 마지막 교환에서 체력이 2 깎인 경우 폭탄 카드를 들고 있었고 공격 카드를 새로 받은 것이 확실하다.
-                    else if (exc[j].GetTurnPlayerHealthVariation() == -2)
-                    {
-                        if (handName[2 * i] == "?" || handName[2 * i] == "Bomb" || handName[2 * i] == "Attack")
-                        {
-                            handName[2 * i] = "Attack";
-                            handName[2 * i + 1] = "Bomb";
-                            break;
-                        }
-                        else
-                        {
-                            Log("How do you have " + handName[2 * i] + " card?");
-                            handName[2 * i] = "Attack";
-                            handName[2 * i + 1] = "Bomb";
-                            break;
+                            handName[2 * i + 1] = GetElementName(bm.GetPlayerElement(i));
                         }
                     }
 
@@ -2472,27 +2556,23 @@ public class PlayerControl : NetworkBehaviour
                 }
                 else if (exc[j].GetObjectPlayer().GetPlayerIndex() == i)
                 {
-                    // 마지막 교환에서 체력이 회복된 경우
-                    if (exc[j].GetObjectPlayerHealthVariation() == 1)
+                    // 상대의 속성을 알고 있고 그 상대가 자신 속성의 공격을 받은 것이 확실한 경우
+                    // (상대의 교환 전 체력이 51 이상이고 생명 카드를 낸 경우에는 교환 로그만으로 알 수 없다. 교환 대상의 공격력이 기록되지 않기 때문이다. 최소 공격력 4 기준이다.)
+                    if (GetUnveiled(i) && ((exc[j].GetObjectPlayerHealthVariation() == -2 && !exc[j].GetObjectPlayerCard().Equals("Life"))
+                        || (exc[j].GetObjectPlayerHealth() < 50 && exc[j].GetObjectPlayerHealthVariation() == 3 && exc[j].GetObjectPlayerCard().Equals("Life"))
+                        || (exc[j].GetObjectPlayerHealth() == 50 && exc[j].GetObjectPlayerHealthVariation() == 2 && exc[j].GetObjectPlayerCard().Equals("Life"))))
                     {
-                        if (handName[2 * i] == "?") handName[2 * i] = "Heal";
-                        else
+                        if (handName[2 * i] == "?")
                         {
-                            handName[2 * i + 1] = "Heal";
-                            break;
+                            handName[2 * i] = GetElementName(bm.GetPlayerElement(i));
                         }
-                    }
-                    // 마지막 교환에서 체력이 1 깎인 경우
-                    else if (exc[j].GetObjectPlayerHealthVariation() == -1)
-                    {
-                        if (handName[2 * i] == "?") handName[2 * i] = "Attack";
                         else
                         {
-                            handName[2 * i + 1] = "Attack";
-                            break;
+                            handName[2 * i + 1] = GetElementName(bm.GetPlayerElement(i));
                         }
                     }
 
+                    // 마지막 교환이 자신과의 교환이었다면 자신이 준 카드를 들고 있을 것이다.
                     if (exc[j].GetTurnPlayer().Equals(this))
                     {
                         if (handName[2 * i] == "?") handName[2 * i] = exc[j].GetTurnPlayerCard().GetCardName();
@@ -2514,58 +2594,55 @@ public class PlayerControl : NetworkBehaviour
         if (isServer) bm.RpcPrintLog(m);
 
         int r;
-        if (handName.IndexOf("Bomb") == -1 && handName.IndexOf("?") != -1)
+        if (handName.IndexOf("Fire") == -1 && handName.IndexOf("?") != -1)
         {
             do
             {
                 r = Random.Range(0, 10);
             } while (handName[r] != "?");
-            handName[r] = "Bomb";
+            handName[r] = "Fire";
         }
-        if ((r = handName.IndexOf("NoBomb")) != -1) handName[r] = "?";
-        if (handName.IndexOf("Deceive") == -1 && handName.IndexOf("?") != -1)
+        if (handName.IndexOf("Water") == -1 && handName.IndexOf("?") != -1)
         {
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?" && handName[r] != "NoBomb");
-            handName[r] = "Deceive";
+            } while (handName[r] != "?");
+            handName[r] = "Water";
         }
-        if (handName.IndexOf("Freeze") == -1 && handName.IndexOf("?") != -1)
+        if (handName.IndexOf("Electricity") == -1 && handName.IndexOf("?") != -1)
         {
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?" && handName[r] != "NoBomb");
-            handName[r] = "Freeze";
+            } while (handName[r] != "?");
+            handName[r] = "Electricity";
         }
-        if (handName.IndexOf("Avoid") == -1 && handName.IndexOf("?") != -1)
+        if (handName.IndexOf("Wind") == -1 && handName.IndexOf("?") != -1)
         {
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?" && handName[r] != "NoBomb");
-            handName[r] = "Avoid";
+            } while (handName[r] != "?");
+            handName[r] = "Wind";
         }
-        if (handName.IndexOf("Heal") == -1 && handName.IndexOf("?") != -1)
+        if (handName.IndexOf("Poison") == -1 && handName.IndexOf("?") != -1)
         {
             do
             {
                 r = Random.Range(0, 10);
-            } while (handName[r] != "?" && handName[r] != "NoBomb");
-            handName[r] = "Heal";
-        }
-        if (handName.IndexOf("Heal") == handName.LastIndexOf("Heal") && handName.IndexOf("?") != -1)
-        {
-            do
-            {
-                r = Random.Range(0, 10);
-            } while (handName[r] != "?" && handName[r] != "NoBomb");
-            handName[r] = "Heal";
+            } while (handName[r] != "?");
+            handName[r] = "Poison";
         }
         for (int i = 0; i < 10; i++)
         {
-            if (handName[i] == "?" || handName[i] == "NoBomb") handName[i] = "Attack";
+            if (handName[i] == "?")
+            {
+                string m3 = "Error in AIHandEstimation!";
+                Log(m3);
+                if (isServer) bm.RpcPrintLog(m3);
+                handName[i] = "Fire";
+            }
         }
 
         /* TODO 임시 코드 */
@@ -2575,6 +2652,7 @@ public class PlayerControl : NetworkBehaviour
             m2 += " " + ((i / 2) + 1) + handName[i];
         }
         Log(m2);
+        if (isServer) bm.RpcPrintLog(m2);
 
         return handName;
     }
@@ -2595,9 +2673,10 @@ public class PlayerControl : NetworkBehaviour
             Debug.Log("cd is null in AIopponentPlay.");
             return "Error!";
         }
-        else if (playerClass < 0 || playerClass > 3)
+        else if (playerClass < 0 || (playerClass >= 3 && playerClass < 10) || (playerClass >= 13 && playerClass < 100)
+            || (playerClass >= 103 && playerClass < 110) || playerClass >= 113)
         {
-            Debug.Log("playerClass out of range [0, 3].");
+            Debug.Log("playerClass is invalid.");
             return "Error!";
         }
         else if (!cd.VerifyCard(card1) || !cd.VerifyCard(card2))
@@ -2606,68 +2685,70 @@ public class PlayerControl : NetworkBehaviour
             return "Error!";
         }
 
-        // 상대가 들고 있는 두 카드가 같은 경우 그것밖에 낼 수 없다.
-        if (card1 == card2 && (card1 == "Attack" || card1 == "Heal"))
+        string rCard1 = card1;
+        string rCard2 = card2;
+
+        // card1이 내 속성과 같은 공격 카드이고, 상대가 내 속성을 알고 있는 경우
+        if (cd.GetCardCode(card1) == GetPlayerElement() && playerClass >= 100)
         {
-            return card1;
+            card1 = "Element";
         }
-        else if (card1 == card2)
+        else if (cd.GetCardCode(card1) < 5)
         {
-            Debug.Log("How do you have two " + card1 + " cards?");
-            return "Error!";
+            card1 = "Attack";
         }
 
-        // 공격, 치유, 폭탄, 회피, 속임, 빙결 순으로 정렬 (하드코딩 주의!)
-        if (card2 == "Attack")
+        // card2이 내 속성과 같은 공격 카드이고, 상대가 내 속성을 알고 있는 경우
+        if (cd.GetCardCode(card2) == GetPlayerElement() && playerClass >= 100)
+        {
+            card2 = "Element";
+        }
+        else if (cd.GetCardCode(card2) < 5)
+        {
+            card2 = "Attack";
+        }
+
+        // "Element", "Attack" 순으로 정렬하고, 나머지는 카드 번호가 빠른 것이 앞에 오도록(Life, Light, Dark, Time, Corruption) 정렬
+        if (card2.Equals("Element"))
         {
             string temp = card1;
             card1 = card2;
             card2 = temp;
         }
-        if (card1 != "Attack")
+        if (!card1.Equals("Element") && card2.Equals("Attack"))
         {
-            if (card2 == "Heal")
-            {
-                string temp = card1;
-                card1 = card2;
-                card2 = temp;
-            }
-            if (card1 != "Heal")
-            {
-                if (card2 == "Bomb")
-                {
-                    string temp = card1;
-                    card1 = card2;
-                    card2 = temp;
-                }
-                if (card1 != "Bomb")
-                {
-                    if (card2 == "Avoid")
-                    {
-                        string temp = card1;
-                        card1 = card2;
-                        card2 = temp;
-                    }
-                    if (card1 != "Avoid")
-                    {
-                        if (card2 == "Deceive")
-                        {
-                            string temp = card1;
-                            card1 = card2;
-                            card2 = temp;
-                        }
-                    }
-                }
-            }
+            string temp = card1;
+            card1 = card2;
+            card2 = temp;
         }
-
+        if (!card1.Equals("Element") && !card2.Equals("Element")
+            && !card1.Equals("Attack") && !card2.Equals("Attack") 
+            && cd.GetCardCode(card1) > cd.GetCardCode(card2))
+        {
+            string temp = card1;
+            card1 = card2;
+            card2 = temp;
+        }
         card1 += card2; // 편의상 이름을 합치기로
 
         switch (playerClass)
         {
-            case 0: // 서로 아무 관계도 아니라고 생각
+            case 0: // 서로 우호적인 관계라고 생각
                 switch (card1)
                 {
+                    case "ElementAttack":
+                        return "Element";
+                    case "ElementLife":
+                        return "Life";
+                    case "ElementLight":
+                        return "Light";
+                    case "ElementDark":
+                        return "Dark";
+                    case "ElementTime":
+                        return "";      // TODO
+                    case "ElementCorruption":
+                        return "Corruption";
+                    /*
                     case "AttackHeal":
                         return "Heal";
                     case "AttackBomb":
@@ -2704,6 +2785,7 @@ public class PlayerControl : NetworkBehaviour
                         return "Avoid";
                     case "DeceiveFreeze":
                         return "Freeze";
+                        */
                 }
                 break;
             case 1: // 상대는 나를 천적으로 생각

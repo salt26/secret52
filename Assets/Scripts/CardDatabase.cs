@@ -133,6 +133,18 @@ public class CardDatabase : MonoBehaviour {
         if (card == null) return null;
         return GetCardInfo(card.GetCardName());
     }
+
+    /// <summary>
+    /// 인자로 주어진 카드의 영어 이름으로 찾은 카드의 번호를 반환합니다.
+    /// 존재하지 않는 카드이면 -1을 반환합니다.
+    /// </summary>
+    /// <param name="cardName">카드의 영어 이름</param>
+    /// <returns></returns>
+    public int GetCardCode(string cardName)
+    {
+        if (!VerifyCard(cardName)) return -1;
+        return cardInfo.IndexOf(GetCardInfo(cardName));
+    }
 }
 
 public class CardInfo

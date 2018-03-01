@@ -77,6 +77,7 @@ public class BattleManager : NetworkBehaviour
 
     private List<int> playerReady = new List<int>();
 
+    [SerializeField] private GameObject logContent;
     [SerializeField] private GameObject loadingPanel;
     [SerializeField] private GameObject exchangeLog;
     private List<GameObject> exchanges = new List<GameObject>();
@@ -345,7 +346,7 @@ public class BattleManager : NetworkBehaviour
         else if (turnStep == 5)
         {
             // 빙결된 이펙트 보여주고 잠시 딜레이
-            GameObject ex = Instantiate(exchangeLog);
+            GameObject ex = Instantiate(exchangeLog, logContent.GetComponent<RectTransform>());
             exchange = ex.GetComponent<Exchange>();
             exchange.SetFreezed(players[turnPlayer]);
             NetworkServer.Spawn(ex);
@@ -718,6 +719,11 @@ public class BattleManager : NetworkBehaviour
         return cards[cardCode].GetComponent<Card>();
     }
 
+    /// <summary>
+    /// cardPosition번째 자리에 배치된 카드를 반환합니다.
+    /// </summary>
+    /// <param name="cardPosition"></param>
+    /// <returns></returns>
     public Card GetCardInPosition(int cardPosition)
     {
         if (cardPosition < 0 || cardPosition >= 10 || turnStep <= 0) return null;
@@ -726,7 +732,7 @@ public class BattleManager : NetworkBehaviour
 
     /// <summary>
     /// 카드의 배치 상태 리스트를 반환합니다.
-    /// 만약 i번째 자리에 배치된 카드에 접근하고 싶다면 GetCardsInHand()[GetCardCode()[i]].GetComponent<Card>()를 사용하십시오.
+    /// 만약 i번째 자리에 배치된 카드에 접근하고 싶다면 GetCardsInHand()[GetCardCode()[i]].GetComponent<Card>() 또는 GetCardInPosition(i)를 사용하십시오.
     /// </summary>
     /// <returns></returns>
     public List<int> GetCardCode()
