@@ -782,6 +782,53 @@ public class BattleManager : NetworkBehaviour
     {
         return playerPermutation.IndexOf(playerIndex);
     }
+
+    /// <summary>
+    /// 권력 꼴지인 플레이어의 권력을 반환합니다.
+    /// </summary>
+    /// <returns></returns>
+    public int GetLeastAuthority()
+    {
+        int a = 100;
+        for (int i = 0; i < 5; i++)
+        {
+            if (GetPlayers()[i].GetStatAuthority() < a)
+                a = GetPlayers()[i].GetStatAuthority();
+        }
+        return a;
+    }
+
+    /// <summary>
+    /// 권력이 두 번째로 낮은 플레이어의 권력을 반환합니다.
+    /// 만약 모든 플레이어의 권력이 동일하다면 100을 반환합니다.
+    /// </summary>
+    /// <returns></returns>
+    public int GetSecondLeastAuthority()
+    {
+        int minA = GetLeastAuthority();
+        int a = 100;
+        for (int i = 0; i < 5; i++)
+        {
+            if (GetPlayers()[i].GetStatAuthority() > minA && GetPlayers()[i].GetStatAuthority() < a)
+                a = GetPlayers()[i].GetStatAuthority();
+        }
+        return a;
+    }
+
+    /// <summary>
+    /// 권력 1등인 플레이어의 권력을 반환합니다.
+    /// </summary>
+    /// <returns></returns>
+    public int GetMostAuthority()
+    {
+        int a = 0;
+        for (int i = 0; i < 5; i++)
+        {
+            if (GetPlayers()[i].GetStatAuthority() > a)
+                a = GetPlayers()[i].GetStatAuthority();
+        }
+        return a;
+    }
     
     // TODO 임시 코드
     [ClientRpc]

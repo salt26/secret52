@@ -36,6 +36,8 @@ public class PlayerControl : NetworkBehaviour
     private bool hasDecidedPlayCard = false;        // 교환 시 교환할 카드를 선택했는지 여부
     private PlayerControl objectTarget;             // 내가 선택한 교환 대상
     private Card playCardAI;                        // 인공지능이 낼 카드
+    private int statMntlMaxAI = 0;                  // 인공지능이 처음에 한 번 달성하려고 하는 정신력의 최대치
+    private int statMntlMinAI = 0;                  // 인공지능이 유지하려고 하는 정신력의 최소치
 
     private RectTransform HealthBar;                // HP UI
     [SerializeField] private GameObject playerCamera;
@@ -1164,6 +1166,50 @@ public class PlayerControl : NetworkBehaviour
     public void SetAI(bool AI)
     {
         isAI = AI;
+
+        List<int> randomBox = new List<int>();
+        randomBox.Add(6);
+        for (int i = 0; i < 3; i++)
+        {
+            randomBox.Add(6);
+            randomBox.Add(7);
+        }
+        for (int i = 0; i < 2; i++)
+        {
+            randomBox.Add(8);
+            randomBox.Add(9);
+        }
+        randomBox.Add(10);
+        randomBox.Add(11);
+        statMntlMaxAI = randomBox[Random.Range(0, randomBox.Count)];
+
+        randomBox.Clear();
+        randomBox.Add(1);
+        randomBox.Add(2);
+        randomBox.Add(3);
+        randomBox.Add(4);
+        for (int i = 0; i < 3; i++)
+        {
+            randomBox.Add(5);
+            randomBox.Add(6);
+        }
+        if (statMntlMaxAI >= 8) randomBox.Add(6);
+        for (int i = 0; i < 2; i++)
+        {
+            if (statMntlMaxAI >= 7)
+            {
+                randomBox.Add(7);
+            }
+            if (statMntlMaxAI >= 8)
+            {
+                randomBox.Add(8);
+            }
+        }
+        for (int i = 9; i < statMntlMaxAI; i++)
+        {
+            randomBox.Add(i);
+        }
+        statMntlMinAI = randomBox[Random.Range(0, randomBox.Count)];
     }
 
     /*
@@ -1880,6 +1926,7 @@ public class PlayerControl : NetworkBehaviour
     IEnumerator AIStatDistribute()
     {
         // TODO 능력치를 판단하여 알아서 올리게 하자.
+        /*
         while (currentExperience >= Mathf.Min(5, currentMentality + 1))
         {
             int r = Random.Range(0, 3);
@@ -1897,9 +1944,203 @@ public class PlayerControl : NetworkBehaviour
             }
             yield return null;
         }
+        */
+
+        // 정신력 최대 목표치를 달성할 때까지 정신력을 최우선으로 올린다.
+        while (currentMentality < statMntlMaxAI && currentExperience >= currentMentality + 1)
+        {
+            AIMentalityUp();
+            yield return null;
+        }
+
+        // 한 번 정신력 최대 목표치에 도달하면 이것을 유지할 필요는 없다.
+        if (statMntlMaxAI > 0 && currentMentality >= statMntlMaxAI) statMntlMaxAI = 0;
+
+        // 정신력 최소 유지치에 미달되면 정신력을 최우선으로 올린다.
+        while (currentMentality < statMntlMinAI && currentExperience >= currentMentality + 1)
+        {
+            AIMentalityUp();
+            yield return null;
+        }
+
+        if (bm != null) { 
+            bool upDown3 = true;
+            for (int i = 0; i < 5; i++)
+            {
+                if (i == GetPlayerIndex()) continue;
+                if (bm.GetPlayers()[i].GetStatAuthority() > GetStatAuthority() - 3
+                    && bm.GetPlayers()[i].GetStatAuthority() < GetStatAuthority() + 3)
+                {
+                    upDown3 = false;
+                    break;
+                }
+            }
+
+            // 자신과 권력이 2 이하로 차이나는 플레이어가 존재하지 않으면 권력을 올릴 필요가 없다.
+            // 다만 위 조건이 만족되어도 25% 확률로 공격력만을 올리지 않을 수 있다.
+            if (upDown3 && Random.Range(0, 4) > 0)
+            {
+                while (currentExperience >= 5)
+                {
+                    AIAttackUp();
+                    yield return null;
+                }
+            }
+        }
+
+        // 목표 천적 관계와 교환 요청 가능 관계 확인
+        List<int> playerClass = AIObjectRelation();
+        List<bool> canIRequest;
+        List<bool> canRequestToMe;
+        List<bool> canRequestOnlyToMe;
+        AIRequestRelation(out canIRequest, out canRequestToMe, out canRequestOnlyToMe);
+
+        bool onlyAthr = true;
+        for (int i = 0; i < 5; i++)
+        {
+            if (i == GetPlayerIndex()) continue;
+            // 목표이거나 속성을 모르는 상대 중에 나와 교환할 수 있는 상대가 있다면
+            if (playerClass[i] % 2 == 0 && (canIRequest[i] || canRequestOnlyToMe[i]))
+            {
+                // 오직 권력만 올릴 필요는 없다.
+                onlyAthr = false;
+                break;
+            }
+        }
+
+        // 권력만 올려서 목표와 교환할 수 있게 해야 한다.
+        if (onlyAthr)
+        {
+            while (currentExperience >= 5)
+            {
+                AIAuthorityUp();
+                yield return null;
+            }
+        }
+
+        if (GetStatAuthority() == bm.GetMostAuthority())
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                if (i == GetPlayerIndex()) continue;
+                if (bm.GetPlayers()[i].GetStatAuthority() == bm.GetLeastAuthority()
+                    && playerClass[i] >= 10)
+                {
+                    // 내가 권력 1등인데 권력 꼴지가 나를 노리는 천적이면
+                    // 권력을 올리지 말아야 한다.
+                    while (currentExperience >= 5)
+                    {
+                        AIAttackUp();
+                        yield return null;
+                    }
+                    break;
+                }
+            }
+        }
+
+        if (GetStatAuthority() == bm.GetLeastAuthority())
+        {
+            for (int i = 0; i < 5; i++)
+            {
+                if (i == GetPlayerIndex()) continue;
+                if (bm.GetPlayers()[i].GetStatAuthority() == bm.GetMostAuthority()
+                    && playerClass[i] % 10 == 0)
+                {
+                    // 내가 권력 꼴지인데 권력 1등이 나의 목표인 것이 확실하면
+                    // 권력을 올리지 말아야 한다. (리스크가 큰 전략이기는 하다.)
+                    while (currentExperience >= 5)
+                    {
+                        AIAttackUp();
+                        yield return null;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // 위의 경우가 아니면 공격력과 권력 중 아무거나 올린다.
+        while (currentExperience >= 5)
+        {
+            int r = Random.Range(0, 2);
+            switch (r)
+            {
+                case 0:
+                    AIAttackUp();
+                    break;
+                case 1:
+                    AIAuthorityUp();
+                    break;
+            }
+            yield return null;
+        }
+
         bm.SetPlayerConfirmStat(GetPlayerIndex(), true);
         yield return null;
         // isThinking은 모든 플레이어가 능력치를 확정하고 나서 false가 됩니다.
+    }
+
+    /// <summary>
+    /// 상대와의 교환 요청 가능 관계를 계산하는 함수입니다.
+    /// </summary>
+    /// <param name="canIRequest">내가 요청할 수 있는 플레이어 인덱스의 값이 true가 됨</param>
+    /// <param name="canRequestToMe">나에게 요청할 수 있는 플레이어 인덱스의 값이 true가 됨</param>
+    /// <param name="canRequestOnlyToMe">나에게만 요청할 수 있는 플레이어 인덱스의 값이 true가 됨</param>
+    private void AIRequestRelation(out List<bool> canIRequest, out List<bool> canRequestToMe, out List<bool> canRequestOnlyToMe)
+    {
+        canIRequest = new List<bool>();
+        canRequestToMe = new List<bool>();
+        canRequestOnlyToMe = new List<bool>();
+        for (int i = 0; i < 5; i++)
+        {
+            if (i == GetPlayerIndex())
+            {
+                canIRequest.Add(false);
+                canRequestToMe.Add(false);
+            }
+            else if (bm.GetPlayers()[i].GetStatAuthority() == GetStatAuthority()
+                || (bm.GetPlayers()[i].GetStatAuthority() == bm.GetLeastAuthority() && GetStatAuthority() == bm.GetMostAuthority())
+                || (bm.GetPlayers()[i].GetStatAuthority() == bm.GetMostAuthority() && GetStatAuthority() == bm.GetLeastAuthority()))
+            {
+                canIRequest.Add(true);
+                canRequestToMe.Add(true);
+            }
+            else if (bm.GetPlayers()[i].GetStatAuthority() > GetStatAuthority())
+            {
+                // 상대 권력이 나보다 높으면
+                canIRequest.Add(false);
+                canRequestToMe.Add(true);
+            }
+            else
+            {
+                // 상대 권력이 나보다 낮으면
+                canIRequest.Add(true);
+                canRequestToMe.Add(false);
+            }
+
+            if (i != GetPlayerIndex() && ((bm.GetPlayers()[i].GetStatAuthority() == bm.GetLeastAuthority() && GetStatAuthority() == bm.GetMostAuthority())
+                || (bm.GetPlayers()[i].GetStatAuthority() == bm.GetSecondLeastAuthority() && GetStatAuthority() == bm.GetLeastAuthority())))
+            {
+                bool b = true;
+                // 내가 1등이고 상대가 꼴지이거나, 내가 꼴지이고 상대가 꼴지에서 2등인 경우
+                // 나와 권력이 같은 플레이어가 아무도 없고 상대와 권력이 같은 플레이어가 아무도 없어야
+                // 그 상대가 나에게만 교환을 요청하게 된다.
+                for (int j = 0; j < 5; j++)
+                {
+                    if (j == i || j == GetPlayerIndex()) continue;
+                    if (bm.GetPlayers()[j].GetStatAuthority() == bm.GetPlayers()[i].GetStatAuthority()
+                        || bm.GetPlayers()[j].GetStatAuthority() == GetStatAuthority())
+                    {
+                        b = false;
+                        break;
+                    }
+                }
+                canRequestOnlyToMe.Add(b);
+            }
+            else
+            {
+                canRequestOnlyToMe.Add(false);
+            }
+        }
     }
 
     /// <summary>
@@ -1969,15 +2210,32 @@ public class PlayerControl : NetworkBehaviour
         playCardAI = myHand[Random.Range(0, 2)];
     }
 
+    /* 
+     * [AIObjectRelation()]
+     * playerClass[i]의 값에 따라서 i번째 인덱스의 플레이어를 다음과 같이 분류한다.
+     * -1: 자기 자신, 
+     * 0 : 자신의 목표이지만 천적이 아닌 상대,
+     * 1 : 자신과 상호 협력적인 관계의 상대, 
+     * 2 : 속성을 모르지만 천적이 아닌 상대,
+     * 10: 자신의 목표이면서 천적인 상대,
+     * 11: 자신의 목표는 아니지만 천적인 상대,
+     * 12: 속성을 모르지만 천적인 상대
+     * 
+     * 짝수: 목표이거나 속성을 모르는 상대
+     * 홀수: 목표가 아닌 상대
+     * 10 이상: 천적인 상대
+     */
     /// <summary>
     /// 인공지능이 자신을 목표로 하는 플레이어들을 추정하게 하는 함수입니다. 플레이어들을 분류한 정보를 목록으로 반환합니다.
     /// </summary>
     private List<int> AIObjectRelation()
     {
-        List<int> enemyPoint = new List<int>(); // 인덱스는 플레이어 인덱스이고, 그 값이 높을수록 그 플레이어가 자신의 천적일 가능성이 높다.
+        List<int> enemyPoint = new List<int>();         // 인덱스는 플레이어 인덱스이고, 그 값이 높을수록 그 플레이어가 자신의 천적일 가능성이 높다.
+        List<bool> hasEnemyKnowMe = new List<bool>();   // 인덱스는 플레이어 인덱스이고, 그 값이 true이면 상대가 나의 속성을 직접적으로 밝힌 적이 있는 것이다.
         for (int i = 0; i < 5; i++)
         {
-            enemyPoint.Add(4);
+            enemyPoint.Add(10);
+            hasEnemyKnowMe.Add(false);
         }
         enemyPoint[GetPlayerIndex()] = -1;  // 자신은 자신의 천적이 아니다.
 
@@ -1988,34 +2246,76 @@ public class PlayerControl : NetworkBehaviour
             // 자신의 턴에 한 교환들 중에서
             if (ex.GetTurnPlayer().Equals(this))
             {
-                if (ex.GetObjectPlayerCard().GetCardName() == "Attack")     // 상대가 공격 카드를 냈다면
+                if (ex.GetObjectPlayerCard().GetCardCode() == GetPlayerElement())   // 상대가 내 속성과 같은 공격 카드를 낸 경우
                 {
                     enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] += 1;
+                    if (ex.GetTurnPlayerCard().GetCardName() != "Dark")             // 내가 피해를 받았다면 상대에게 속성이 알려진다.
+                    {
+                        hasEnemyKnowMe[ex.GetObjectPlayer().GetPlayerIndex()] = true;
+                    }
                 }
-                else if (ex.GetObjectPlayerCard().GetCardName() == "Bomb")  // 상대가 폭탄 카드를 냈다면
+                else if (ex.GetObjectPlayerCard().GetCardName() == "Light")         // 상대가 빛 카드를 냈다면 상대에게 속성이 알려진다.
+                {
+                    hasEnemyKnowMe[ex.GetObjectPlayer().GetPlayerIndex()] = true;
+                }
+                else if (ex.GetObjectPlayerCard().GetCardCode() < 5)     // 상대가 공격 카드를 냈다면
                 {
                     enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] += 1;
+                    if (hasEnemyKnowMe[ex.GetObjectPlayer().GetPlayerIndex()])  // 상대가 내 속성을 알고 내 속성이 아닌 카드로 공격했다면
+                    {
+                        enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] += 2;
+                    }
                 }
-                else if (ex.GetObjectPlayerCard().GetCardName() == "Heal" && ex.GetTurnPlayerHealth() != maxHealth) // 상대의 치유 카드로 체력이 회복된 경우
+                else if (ex.GetObjectPlayerCard().GetCardName() == "Dark")  // 상대가 어둠 카드를 냈다면
                 {
                     enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] -= 1;
+                    if (enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] < 0) enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] = 0;
+                }
+                else if (ex.GetObjectPlayerCard().GetCardName() == "Life") // 상대가 생명 카드를 냈다면
+                {
+                    enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] -= 2;
+                    if (hasEnemyKnowMe[ex.GetObjectPlayer().GetPlayerIndex()])  // 상대가 내 속성을 알고 생명 카드를 냈다면
+                    {
+                        enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] -= 2;
+                    }
                     if (enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] < 0) enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] = 0;
                 }
             }
             // 상대가 자신에게 걸어온 교환 중에서
             else if (ex.GetObjectPlayer().Equals(this))
             {
-                if (ex.GetTurnPlayerCard().GetCardName() == "Attack")
-                {
-                    enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] += 2;
-                }
-                else if (ex.GetTurnPlayerCard().GetCardName() == "Bomb")
+                if (ex.GetTurnPlayerCard().GetCardCode() == GetPlayerElement())     // 상대가 내 속성과 같은 공격 카드를 낸 경우
                 {
                     enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] += 1;
+                    if (ex.GetObjectPlayerCard().GetCardName() != "Dark")           // 내가 피해를 받았다면 상대에게 속성이 알려진다.
+                    {
+                        hasEnemyKnowMe[ex.GetTurnPlayer().GetPlayerIndex()] = true;
+                    }
                 }
-                else if (ex.GetTurnPlayerCard().GetCardName() == "Heal" && ex.GetObjectPlayerHealth() != maxHealth)
+                else if (ex.GetTurnPlayerCard().GetCardName() == "Light")         // 상대가 빛 카드를 냈다면 상대에게 속성이 알려진다.
+                {
+                    hasEnemyKnowMe[ex.GetTurnPlayer().GetPlayerIndex()] = true;
+                }
+                else if (ex.GetTurnPlayerCard().GetCardCode() < 5)
+                {
+                    enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] += 1;
+                    if (hasEnemyKnowMe[ex.GetTurnPlayer().GetPlayerIndex()])  // 상대가 내 속성을 알고 내 속성이 아닌 카드로 공격했다면
+                    {
+                        enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] += 3;
+                    }
+                }
+                else if (ex.GetTurnPlayerCard().GetCardName() == "Dark")
+                {
+                    enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] -= 1;
+                    if (enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] < 0) enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] = 0;
+                }
+                else if (ex.GetTurnPlayerCard().GetCardName() == "Life")
                 {
                     enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] -= 2;
+                    if (hasEnemyKnowMe[ex.GetTurnPlayer().GetPlayerIndex()])
+                    {
+                        enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] -= 3;
+                    }
                     if (enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] < 0) enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] = 0;
                 }
             }
@@ -2065,29 +2365,21 @@ public class PlayerControl : NetworkBehaviour
                 }
             }
         }
-        bm.GetTarget(GetPlayerIndex());
         List<int> playerClass = new List<int>();
         for (int i = 0; i < 5; i++)
         {
             if (i == GetPlayerIndex())
-                playerClass.Add(-1);                                            // 자기 자신
+                playerClass.Add(-1);                                                // 자기 자신
             else
             {
                 int c = 0;
-                if (isEnemy.IndexOf(i) != -1) c += 2;                           // 천적
-                if (bm.GetTarget(GetPlayerIndex()).IndexOf(i) != -1) c += 1;    // 자신의 목표
+                if (isEnemy.IndexOf(i) != -1) c += 10;                              // 천적
+
+                if (!GetUnveiled(i)) c += 2;                                        // 자신의 목표인지 모름
+                else if (bm.GetTarget(GetPlayerIndex()).IndexOf(i) == -1) c += 1;   // 자신의 목표가 아님
                 playerClass.Add(c);
             }
         }
-
-        /* 
-         * playerClass[i]의 값에 따라서 i번째 인덱스의 플레이어를 다음과 같이 분류한다.
-         * -1: 자기 자신, 
-         * 0: 자신과 아무 관계도 아닌 상대, 
-         * 1: 자신의 목표이지만 천적이 아닌 상대,
-         * 2: 천적이지만 자신의 목표가 아닌 상대,
-         * 3: 자신의 목표이면서 천적인 상대
-         */
 
         return playerClass;
     }
