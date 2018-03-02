@@ -155,7 +155,7 @@ public class Pusher : MonoBehaviour
         if (selectedCardInfo != null)
         {
             if (opponentPlayerCardCode == 8)    // TODO 하드코딩 주의
-                MoveDeceive(GameObject.FindGameObjectWithTag(selectedCardInfo.GetLR()).transform.position, selectedCardInfo.GetOriginalPosition(), selectedCardInfo.GetLR());
+                MoveTime(GameObject.FindGameObjectWithTag(selectedCardInfo.GetLR()).transform.position, selectedCardInfo.GetOriginalPosition(), selectedCardInfo.GetLR());
             else
                 MoveCardDown(GameObject.FindGameObjectWithTag(selectedCardInfo.GetLR()).transform.position, selectedCardInfo.GetOriginalPosition(), selectedCardInfo.GetLR());
 
@@ -224,12 +224,12 @@ public class Pusher : MonoBehaviour
         GameObject.FindGameObjectWithTag(LR).transform.position = det;
     }
 
-    public void MoveDeceive(Vector3 dCardPosition, Vector3 ddet, string LR)
+    public void MoveTime(Vector3 dCardPosition, Vector3 ddet, string LR)
     {
-        process.Enqueue(Deceiver(dCardPosition, ddet, LR));
+        process.Enqueue(TimeMover(dCardPosition, ddet, LR));
     }
 
-    IEnumerator Deceiver(Vector3 SelectedCardPosition, Vector3 SelectedCarddet, string LR)
+    IEnumerator TimeMover(Vector3 SelectedCardPosition, Vector3 SelectedCarddet, string LR)
     {
         float t = Time.time;
         string RL = "a";

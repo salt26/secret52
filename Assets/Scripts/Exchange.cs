@@ -14,12 +14,14 @@ public class Exchange : NetworkBehaviour {
     private PlayerControl objectPlayer;  // 교환당하는 플레이어
     private Card turnPlayerCard;          // 턴을 진행하는 플레이어가 낸 카드 이름(종류)
     private Card objectPlayerCard;        // 교환당하는 플레이어가 낸 카드 이름(종류)
-    private Card turnPlayerVoidCard;      // 턴을 진행하는 플레이어가 냈지만 상대의 속임 카드로 인해 돌려받게 된 카드 이름(종류)
-    private Card objectPlayerVoidCard;    // 교환당하는 플레이어가 냈지만 상대의 속임 카드로 인해 돌려받게 된 카드 이름(종류)
+    private Card turnPlayerVoidCard;      // 턴을 진행하는 플레이어가 냈지만 상대의 시간 카드로 인해 돌려받게 된 카드 이름(종류)
+    private Card objectPlayerVoidCard;    // 교환당하는 플레이어가 냈지만 상대의 시간 카드로 인해 돌려받게 된 카드 이름(종류)
     private List<Card> turnPlayerHand;    // 턴을 진행하는 플레이어의 교환 전 손패(외부 공개 불가)
     private List<Card> objectPlayerHand;  // 교환당하는 플레이어의 교환 전 손패(외부 공개 불가)
     private int turnPlayerHealth;           // 턴을 진행하는 플레이어의 교환 전 체력
     private int objectPlayerHealth;         // 교환당하는 플레이어의 교환 전 체력
+    private int turnPlayerAttack;           // 턴을 진행하는 플레이어의 교환 전 공격력
+    private int objectPlayerAttack;         // 교환당하는 플레이어의 교환 전 공격력
     private int turnPlayerHealthVariation;  // 턴을 진행하는 플레이어의 교환 후 체력 변화
     private int objectPlayerHealthVariation;// 교환당하는 플레이어의 교환 후 체력 변화
     private int turnNum;                    // 대전 시작부터 지나온 턴 수 (0: 잘못된 교환 정보)
@@ -115,21 +117,30 @@ public class Exchange : NetworkBehaviour {
         turnPlayer = turnP;
         objectPlayer = objectP;
         if (turnPlayer != null)
+        {
             turnPlayerHealth = turnPlayer.GetHealth();
+            turnPlayerAttack = turnPlayer.GetStatAttack();
+        }
         else
         {
             Debug.LogError("Exchanging player is null!");
             turnPlayerHealth = 0;
             objectPlayerHealth = 0;
+            turnPlayerAttack = 0;
+            objectPlayerAttack = 0;
             turnNum = 0;
             return;
         }
         if (objectPlayer != null)
+        {
             objectPlayerHealth = objectPlayer.GetHealth();
+            objectPlayerAttack = objectPlayer.GetStatAttack();
+        }
         else
         {
             Debug.LogError("Exchanging player is null!");
             objectPlayerHealth = 0;
+            objectPlayerAttack = 0;
             turnNum = 0;
             return;
         }
@@ -412,7 +423,7 @@ public class Exchange : NetworkBehaviour {
 
     /// <summary>
     /// 손패에서 인자로 주어진 카드와 다른 카드를 반환합니다.
-    /// 속임 효과를 구현할 때 쓰입니다.
+    /// 시간 효과를 구현할 때 쓰입니다.
     /// </summary>
     /// <param name="card"></param>
     /// <param name="hand"></param>
@@ -487,6 +498,24 @@ public class Exchange : NetworkBehaviour {
     public int GetObjectPlayerHealth()
     {
         return objectPlayerHealth;
+    }
+
+    /// <summary>
+    /// 턴을 진행한 플레이어의 교환 전 공격력을 반환합니다.
+    /// </summary>
+    /// <returns></returns>
+    public int GetTurnPlayerAttack()
+    {
+        return turnPlayerAttack;
+    }
+
+    /// <summary>
+    /// 교환당한 플레이어의 교환 전 공격력을 반환합니다.
+    /// </summary>
+    /// <returns></returns>
+    public int GetObjectPlayerAttack()
+    {
+        return objectPlayerAttack;
     }
 
     /// <summary>

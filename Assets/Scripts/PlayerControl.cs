@@ -600,6 +600,9 @@ public class PlayerControl : NetworkBehaviour
         if (isAI && isThinking) isThinking = false;
     }
 
+    /// <summary>
+    /// 교환 로그들을 살펴보고 자동으로 속성을 밝혀내는 시스템입니다.
+    /// </summary>
     public void UnveilFromExchangeLog()
     {
         if (!isServer || bm == null) return;
@@ -619,6 +622,7 @@ public class PlayerControl : NetworkBehaviour
         if (exchanges.Count > 0)
         {
             // 마지막 교환에서 직접적으로 상대 속성을 알 수 있는 경우 (빛 카드를 사용하거나 상대 속성의 카드로 2의 피해를 준 경우)
+            // (속성 카드로 공격했어도 상대가 생명 카드를 내면 남은 체력에 따라 속성이 밝혀지지 않을 수도 있다. 최소 공격력 4, 최대 체력 52, 회복량 5 기준)
             Exchange exc = exchanges[exchanges.Count - 1];
             if (exc.GetTurnPlayer() == this && exc.GetTurnPlayerCard().GetCardName().Equals("Light"))
             {
@@ -629,12 +633,14 @@ public class PlayerControl : NetworkBehaviour
                 Unveil(exc.GetTurnPlayer().GetPlayerIndex());
             }
             else if (exc.GetTurnPlayer() == this && exc.GetTurnPlayerCard().GetCardCode() == exc.GetObjectPlayer().GetPlayerElement()
-                && !exc.GetObjectPlayerCard().GetCardName().Equals("Dark"))
+                && !(exc.GetObjectPlayerCard().GetCardName().Equals("Dark")
+                || (exc.GetObjectPlayerCard().GetCardName().Equals("Life") && exc.GetObjectPlayerHealth() - exc.GetTurnPlayerAttack() >= 47)))
             {
                 Unveil(exc.GetObjectPlayer().GetPlayerIndex());
             }
             else if (exc.GetObjectPlayer() == this && exc.GetObjectPlayerCard().GetCardCode() == exc.GetTurnPlayer().GetPlayerElement()
-                && !exc.GetTurnPlayerCard().GetCardName().Equals("Dark"))
+                && !(exc.GetTurnPlayerCard().GetCardName().Equals("Dark")
+                || (exc.GetTurnPlayerCard().GetCardName().Equals("Life") && exc.GetTurnPlayerHealth() - exc.GetObjectPlayerAttack() >= 47)))
             {
                 Unveil(exc.GetTurnPlayer().GetPlayerIndex());
             }
@@ -2091,7 +2097,7 @@ public class PlayerControl : NetworkBehaviour
             {
                 if (i == GetPlayerIndex()) continue;
                 if (bm.GetPlayers()[i].GetStatAuthority() == bm.GetLeastAuthority()
-                    && (playerClass[i] / 100) % 10 == 1
+                    && (playerClass[i] % 100) / 10 == 1
                     && bm.GetLeastAuthority() != bm.GetMostAuthority()
                     && bm.GetSecondLeastAuthority() != bm.GetMostAuthority())
                 {
@@ -2274,16 +2280,17 @@ public class PlayerControl : NetworkBehaviour
         List<Card> myHand = bm.GetPlayerHand(this);
         List<string> decisionBox = new List<string>(); // 이 목록에 제비뽑기를 넣고 나중에 하나 뽑아 나온 행동을 한다.
         if (opponent == null) {
-            /*
+            
             for (int i = 0; i < 5; i++)
             {
                 if (i == GetPlayerIndex()) continue;
+                if (!CanRequestExchange(i)) continue;
                 string opponentCard = AIOpponentPlay(playerClass[i], hand[2 * i], hand[2 * i + 1], bm.GetPlayers()[i].GetHealth());
                 bm.RpcPrintLog("opponentCard is " + opponentCard + ".");
                 AIScoreBehavior(myHand[0].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
                 AIScoreBehavior(myHand[1].GetCardName(), opponentCard, hand, i, playerClass[i], decisionBox);
             }
-            */
+            /*
             // TODO 랜덤 말고 인공지능으로 고치기
             int r;
             do
@@ -2291,9 +2298,8 @@ public class PlayerControl : NetworkBehaviour
                 r = Random.Range(0, 5);
                 objectTarget = bm.GetPlayers()[r];
             } while (objectTarget == null || objectTarget.Equals(this) || !CanRequestExchange(r));
-            
+            */
         }
-        /*
         else
         {
             int i = opponent.GetPlayerIndex();
@@ -2312,10 +2318,10 @@ public class PlayerControl : NetworkBehaviour
         if (myHand[0].GetCardName() == lottery) playCardAI = myHand[0];
         else if (myHand[1].GetCardName() == lottery) playCardAI = myHand[1];
         else Debug.LogError("lottery is invalid.");
-        */
+        /*
         // TODO 랜덤 말고 인공지능으로 고치기
         playCardAI = myHand[Random.Range(0, 2)];
-        
+        */
     }
 
     /* 
@@ -2515,6 +2521,15 @@ public class PlayerControl : NetworkBehaviour
             else handName.Add("?"); // 비공개된 공격 카드
         }
 
+        /* TODO 임시 코드 */
+        string m4 = GetName() + " knows:";
+        for (int i = 0; i < 10; i++)
+        {
+            m4 += " " + ((i / 2) + 1) + handName[i];
+        }
+        Log(m4);
+        if (isServer) bm.RpcPrintLog(m4);
+
         for (int i = 0; i < 5; i++)
         {
             // 자기 자신이면 무슨 카드를 들고 있는지 이미 알고 있다.
@@ -2529,12 +2544,19 @@ public class PlayerControl : NetworkBehaviour
             {
                 if (exc[j].GetTurnPlayer().GetPlayerIndex() == i)
                 {
+                    // 상대가 낸 카드가 항상 공개되는 카드이면 확인할 필요가 없다.
+                    if (exc[j].GetTurnPlayerCard().GetCardCode() >= 5) break;
+
                     // 상대의 속성을 알고 있고 그 상대가 자신 속성의 공격을 받은 것이 확실한 경우
-                    // (상대의 교환 전 체력이 51 이상이고 생명 카드를 낸 경우에는 교환 로그만으로 알 수 없다. 교환 대상의 공격력이 기록되지 않기 때문이다. 최소 공격력 4 기준이다.)
+                    // (상대의 교환 전 체력이 51 이상이고 생명 카드를 낸 경우에는 따져봐야 한다. 최소 공격력 4, 최대 체력 52, 회복량 5 기준이다.)
                     if (GetUnveiled(i) && ((exc[j].GetTurnPlayerHealthVariation() == -2 && !exc[j].GetTurnPlayerCard().Equals("Life"))
+                        /*
                         || (exc[j].GetTurnPlayerHealth() < 50 && exc[j].GetTurnPlayerHealthVariation() == 3 && exc[j].GetTurnPlayerCard().Equals("Life"))
                         || (exc[j].GetTurnPlayerHealth() == 50 && exc[j].GetTurnPlayerHealthVariation() == 2 && exc[j].GetTurnPlayerCard().Equals("Life"))))
+                        */
+                        || (exc[j].GetTurnPlayerHealth() - exc[j].GetObjectPlayerAttack() < 47 && exc[j].GetTurnPlayerCard().Equals("Life"))))
                     {
+
                         if (handName[2 * i] == "?")
                         {
                             handName[2 * i] = GetElementName(bm.GetPlayerElement(i));
@@ -2545,22 +2567,31 @@ public class PlayerControl : NetworkBehaviour
                         }
                     }
 
+                    /*
                     // 마지막 교환이 자신과의 교환이었다면 자신이 준 카드를 들고 있을 것이다.
-                    if (exc[j].GetObjectPlayer().Equals(this))
+                    if (exc[j].GetObjectPlayer().Equals(this) && exc[j].GetObjectPlayerCard().GetCardCode() < 5)
                     {
                         if (handName[2 * i] == "?") handName[2 * i] = exc[j].GetObjectPlayerCard().GetCardName();
-                        else if (handName[2 * i] != exc[j].GetObjectPlayerCard().GetCardName())
+                        else if (handName[2 * i] != exc[j].GetObjectPlayerCard().GetCardName()
+                            && handName[2 * i + 1] == "?")
                             handName[2 * i + 1] = exc[j].GetObjectPlayerCard().GetCardName();
                     }
+                    */
                     break;
                 }
                 else if (exc[j].GetObjectPlayer().GetPlayerIndex() == i)
                 {
+                    // 상대가 낸 카드가 항상 공개되는 카드이면 확인할 필요가 없다.
+                    if (exc[j].GetObjectPlayerCard().GetCardCode() >= 5) break;
+
                     // 상대의 속성을 알고 있고 그 상대가 자신 속성의 공격을 받은 것이 확실한 경우
-                    // (상대의 교환 전 체력이 51 이상이고 생명 카드를 낸 경우에는 교환 로그만으로 알 수 없다. 교환 대상의 공격력이 기록되지 않기 때문이다. 최소 공격력 4 기준이다.)
+                    // (상대의 교환 전 체력이 51 이상이고 생명 카드를 낸 경우에는 따져봐야 한다. 최소 공격력 4, 최대 체력 52, 회복량 5 기준이다.)
                     if (GetUnveiled(i) && ((exc[j].GetObjectPlayerHealthVariation() == -2 && !exc[j].GetObjectPlayerCard().Equals("Life"))
+                        /*
                         || (exc[j].GetObjectPlayerHealth() < 50 && exc[j].GetObjectPlayerHealthVariation() == 3 && exc[j].GetObjectPlayerCard().Equals("Life"))
                         || (exc[j].GetObjectPlayerHealth() == 50 && exc[j].GetObjectPlayerHealthVariation() == 2 && exc[j].GetObjectPlayerCard().Equals("Life"))))
+                        */
+                        || (exc[j].GetObjectPlayerHealth() - exc[j].GetTurnPlayerAttack() < 47 && exc[j].GetObjectPlayerCard().Equals("Life"))))
                     {
                         if (handName[2 * i] == "?")
                         {
@@ -2572,13 +2603,16 @@ public class PlayerControl : NetworkBehaviour
                         }
                     }
 
+                    /*
                     // 마지막 교환이 자신과의 교환이었다면 자신이 준 카드를 들고 있을 것이다.
-                    if (exc[j].GetTurnPlayer().Equals(this))
+                    if (exc[j].GetTurnPlayer().Equals(this) && exc[j].GetObjectPlayerCard().GetCardCode() < 5)
                     {
                         if (handName[2 * i] == "?") handName[2 * i] = exc[j].GetTurnPlayerCard().GetCardName();
-                        else if (handName[2 * i] != exc[j].GetTurnPlayerCard().GetCardName())
+                        else if (handName[2 * i] != exc[j].GetTurnPlayerCard().GetCardName()
+                            && handName[2 * i + 1] == "?")
                             handName[2 * i + 1] = exc[j].GetTurnPlayerCard().GetCardName();
                     }
+                    */
                     break;
                 }
             }
@@ -2589,6 +2623,10 @@ public class PlayerControl : NetworkBehaviour
         for (int i = 0; i < 10; i++)
         {
             m += " " + ((i/2)+1) + handName[i];
+            for (int j = 0; j < i; j++)
+            {
+                if (!handName[i].Equals("?") && handName[j].Equals(handName[i])) Debug.LogError("Duplicated in AIHandEstimation!");
+            }
         }
         Log(m);
         if (isServer) bm.RpcPrintLog(m);
@@ -2664,7 +2702,7 @@ public class PlayerControl : NetworkBehaviour
     /// <param name="card1">상대 손패에 있을 것 같은 카드</param>
     /// <param name="card2">상대 손패에 있을 것 같은 카드</param>
     /// <param name="opponentHealth">상대의 교환 전 남은 체력</param>
-    /// <returns>상대가 낼 것으로 생각되는 카드 이름</returns>
+    /// <returns>상대가 낼 것으로 생각되는 카드 이름 (공격 카드는 "Element" 또는 "Attack"으로 변환됨)</returns>
     private string AIOpponentPlay(int playerClass, string card1, string card2, int opponentHealth)
     {
         CardDatabase cd = GameObject.Find("BattleManager").GetComponent<CardDatabase>();
@@ -2685,13 +2723,16 @@ public class PlayerControl : NetworkBehaviour
             return "Error!";
         }
 
+        /*
         string rCard1 = card1;
         string rCard2 = card2;
+        */
 
         // card1이 내 속성과 같은 공격 카드이고, 상대가 내 속성을 알고 있는 경우
         if (cd.GetCardCode(card1) == GetPlayerElement() && playerClass >= 100)
         {
             card1 = "Element";
+            Debug.LogWarning("We found Element in AIOpponentPlay!");
         }
         else if (cd.GetCardCode(card1) < 5)
         {
@@ -2702,6 +2743,7 @@ public class PlayerControl : NetworkBehaviour
         if (cd.GetCardCode(card2) == GetPlayerElement() && playerClass >= 100)
         {
             card2 = "Element";
+            Debug.LogWarning("We found Element in AIOpponentPlay!");
         }
         else if (cd.GetCardCode(card2) < 5)
         {
@@ -2733,7 +2775,98 @@ public class PlayerControl : NetworkBehaviour
 
         switch (playerClass)
         {
-            case 0: // 서로 우호적인 관계라고 생각
+            case 0: // 상대가 내 속성을 모르고 나를 천적으로 생각
+            case 2:
+            case 10:
+            case 12:
+                switch (card1)
+                {
+                    case "AttackAttack":
+                        return "Attack";
+                    case "AttackLife":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Life";
+                        else return "Attack";
+                    case "AttackLight":
+                        return "Light";
+                    case "AttackDark":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Dark";
+                        else return "Attack";
+                    case "AttackTime":
+                        return "Attack";
+                    case "AttackCorruption":
+                        return "Corruption";
+                    case "LifeLight":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Life";
+                        else return "Light";
+                    case "LifeDark":
+                        return "Dark";
+                    case "LifeTime":
+                        return "Time";
+                    case "LifeCorruption":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Life";
+                        else return "Corruption";
+                    case "LightDark":
+                        return "Light";
+                    case "LightTime":
+                        return "Light";
+                    case "LightCorruption":
+                        return "Corruption";
+                    case "DarkTime":
+                        return "Time";
+                    case "DarkCorruption":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Dark";
+                        else return "Corruption";
+                    case "TimeCorruption":
+                        return "Corruption";
+                }
+                break;
+            case 1: // 상대가 내 속성을 모르고 내가 천적이 아니라고 생각
+            case 11:
+                switch (card1)
+                {
+                    case "AttackAttack":
+                        return "Attack";
+                    case "AttackLife":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Life";
+                        else return "Attack";
+                    case "AttackLight":
+                        return "Light";
+                    case "AttackDark":
+                        return "Attack";
+                    case "AttackTime":
+                        return "Attack";
+                    case "AttackCorruption":
+                        return "Corruption";
+                    case "LifeLight":
+                        return "Light";
+                    case "LifeDark":
+                        return "Life";
+                    case "LifeTime":
+                        return "Life";
+                    case "LifeCorruption":
+                        return "Corruption";
+                    case "LightDark":
+                        return "Light";
+                    case "LightTime":
+                        return "Light";
+                    case "LightCorruption":
+                        return "Corruption";
+                    case "DarkTime":
+                        return "Time";
+                    case "DarkCorruption":
+                        return "Corruption";
+                    case "TimeCorruption":
+                        return "Corruption";
+                }
+                break;
+            case 100:
+            case 102: // 상대는 내가 목표가 아니라는 것을 알고 있고 천적이라고 생각함
                 switch (card1)
                 {
                     case "ElementAttack":
@@ -2745,161 +2878,207 @@ public class PlayerControl : NetworkBehaviour
                     case "ElementDark":
                         return "Dark";
                     case "ElementTime":
-                        return "";      // TODO
+                        return "Time";
                     case "ElementCorruption":
                         return "Corruption";
-                    /*
-                    case "AttackHeal":
-                        return "Heal";
-                    case "AttackBomb":
-                        return "Bomb";
-                    case "AttackAvoid":
-                        return "Avoid";
-                    case "AttackDeceive":
-                        return "Deceive";
-                    case "AttackFreeze":
-                        return "Freeze";
-                    case "HealBomb":
-                        if (!bm.GetTurnPlayer().Equals(this) && opponentHealth <= 2)
-                        {
-                            return "Bomb";
-                        }
-                        else return "Heal";
-                    case "HealAvoid":
-                    case "HealDeceive":
-                    case "HealFreeze":
-                        return "Heal";
-                    case "BombAvoid":
-                        if (bm.GetTurnPlayer().Equals(this) && GetHealth() <= 2)
-                        {
-                            return "Avoid";
-                        }
-                        else return "Bomb";
-                    case "BombDeceive":
-                    case "BombFreeze":
-                        return "Bomb";
-                    case "AvoidDeceive":
-                        if (Random.Range(0, 1) == 0) return "Deceive";
-                        else return "Avoid";
-                    case "AvoidFreeze":
-                        return "Avoid";
-                    case "DeceiveFreeze":
-                        return "Freeze";
-                        */
+                    case "AttackAttack":
+                        return "Attack";
+                    case "AttackLife":
+                        return "Life";
+                    case "AttackLight":
+                        return "Light";
+                    case "AttackDark":
+                        return "Dark";
+                    case "AttackTime":
+                        return "Time";
+                    case "AttackCorruption":
+                        return "Corruption";
+                    case "LifeLight":
+                        return "Life";
+                    case "LifeDark":
+                        if (Random.Range(0, 2) == 0) return "Life";
+                        else return "Dark";
+                    case "LifeTime":
+                        return "Time";
+                    case "LifeCorruption":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Life";
+                        else return "Corruption";
+                    case "LightDark":
+                        return "Dark";
+                    case "LightTime":
+                        return "Time";
+                    case "LightCorruption":
+                        return "Corruption";
+                    case "DarkTime":
+                        return "Time";
+                    case "DarkCorruption":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Dark";
+                        else return "Corruption";
+                    case "TimeCorruption":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Time";
+                        else return "Corruption";
                 }
                 break;
-            case 1: // 상대는 나를 천적으로 생각
+            case 101: // 상대는 내가 목표가 아니라는 것을 알고 있고 천적이 아니라고 생각함
                 switch (card1)
                 {
-                    case "AttackHeal":
-                        return "Heal";
-                    case "AttackBomb":
-                        return "Bomb";
-                    case "AttackAvoid":
-                        return "Avoid";
-                    case "AttackDeceive":
-                        return "Deceive";
-                    case "AttackFreeze":
-                        return "Freeze";
-                    case "HealBomb":
-                        if (!bm.GetTurnPlayer().Equals(this) && opponentHealth <= 2)
-                        {
-                            return "Bomb";
-                        }
-                        else return "Heal";
-                    case "HealAvoid":
-                        return "Avoid";
-                    case "HealDeceive":
-                        return "Heal";
-                    case "HealFreeze":
-                        if (GetHealth() <= 2) return "Heal";
-                        else return "Freeze";
-                    case "BombAvoid":
-                        return "Avoid";
-                    case "BombDeceive":
-                        return "Deceive";
-                    case "BombFreeze":
-                        return "Freeze";
-                    case "AvoidDeceive":
-                        return "Avoid";
-                    case "AvoidFreeze":
-                        if (opponentHealth <= 2) return "Avoid";
-                        else return "Freeze";
-                    case "DeceiveFreeze":
-                        return "Freeze";
+                    case "ElementAttack":
+                        return "Element";
+                    case "ElementLife":
+                        return "Life";
+                    case "ElementLight":
+                        return "Light";
+                    case "ElementDark":
+                        return "Dark";
+                    case "ElementTime":
+                        return "Time";
+                    case "ElementCorruption":
+                        return "Corruption";
+                    case "AttackAttack":
+                        return "Attack";
+                    case "AttackLife":
+                        return "Life";
+                    case "AttackLight":
+                        return "Light";
+                    case "AttackDark":
+                        return "Dark";
+                    case "AttackTime":
+                        return "Time";
+                    case "AttackCorruption":
+                        return "Corruption";
+                    case "LifeLight":
+                        return "Life";
+                    case "LifeDark":
+                        return "Life";
+                    case "LifeTime":
+                        return "Life";
+                    case "LifeCorruption":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Life";
+                        else return "Corruption";
+                    case "LightDark":
+                        return "Light";
+                    case "LightTime":
+                        return "Light";
+                    case "LightCorruption":
+                        return "Corruption";
+                    case "DarkTime":
+                        return "Time";
+                    case "DarkCorruption":
+                        return "Corruption";
+                    case "TimeCorruption":
+                        return "Corruption";
                 }
                 break;
-            case 2: // 상대는 나를 목표로 생각
+            case 110:
+            case 112: // 상대는 내가 목표라는 것을 알고 있고 천적이라고 생각함
                 switch (card1)
                 {
-                    case "AttackHeal":
+                    case "ElementAttack":
                         return "Attack";
-                    case "AttackBomb":
-                        return "Bomb";
-                    case "AttackAvoid":
-                    case "AttackDeceive":
-                    case "AttackFreeze":
+                    case "ElementLife":
+                        return "Life";
+                    case "ElementLight":
+                        return "Light";
+                    case "ElementDark":
+                        return "Dark";
+                    case "ElementTime":
+                        return "Time";
+                    case "ElementCorruption":
+                        return "Corruption";
+                    case "AttackAttack":
                         return "Attack";
-                    case "HealBomb":
-                        return "Bomb";
-                    case "HealAvoid":
-                        return "Avoid";
-                    case "HealDeceive":
-                        return "Deceive";
-                    case "HealFreeze":
-                        return "Freeze";
-                    case "BombAvoid":
-                    case "BombDeceive":
-                    case "BombFreeze":
-                        return "Bomb";
-                    case "AvoidDeceive":
-                        if (Random.Range(0, 1) == 0) return "Avoid";
-                        else return "Deceive";
-                    case "AvoidFreeze":
-                        return "Freeze";
-                    case "DeceiveFreeze":
-                        if (Random.Range(0, 1) == 0) return "Freeze";
-                        else return "Deceive";
-                }
-                break;
-            case 3: // 상대는 나를 목표이자 천적으로 생각
-                switch (card1)
-                {
-                    case "AttackHeal":
+                    case "AttackLife":
                         return "Attack";
-                    case "AttackBomb":
-                        return "Bomb";
-                    case "AttackAvoid":
-                        if (opponentHealth <= 2) return "Avoid";
+                    case "AttackLight":
+                        return "Attack";
+                    case "AttackDark":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Dark";
                         else return "Attack";
-                    case "AttackDeceive":
-                    case "AttackFreeze":
+                    case "AttackTime":
+                        return "Time";
+                    case "AttackCorruption":
                         return "Attack";
-                    case "HealBomb":
-                        return "Bomb";
-                    case "HealAvoid":
-                        return "Avoid";
-                    case "HealDeceive":
-                        return "Deceive";
-                    case "HealFreeze":
-                        return "Freeze";
-                    case "BombAvoid":
-                    case "BombDeceive":
-                    case "BombFreeze":
-                        return "Bomb";
-                    case "AvoidDeceive":
-                        if (Random.Range(0, 1) == 0) return "Avoid";
-                        else return "Deceive";
-                    case "AvoidFreeze":
-                        if (opponentHealth <= 2) return "Avoid";
-                        else return "Freeze";
-                    case "DeceiveFreeze":
-                        if (Random.Range(0, 1) == 0) return "Freeze";
-                        else return "Deceive";
+                    case "LifeLight":
+                        return "Light";
+                    case "LifeDark":
+                        return "Dark";
+                    case "LifeTime":
+                        return "Time";
+                    case "LifeCorruption":
+                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                            return "Life";
+                        else return "Corruption";
+                    case "LightDark":
+                        return "Dark";
+                    case "LightTime":
+                        return "Time";
+                    case "LightCorruption":
+                        return "Corruption";
+                    case "DarkTime":
+                        return "Time";
+                    case "DarkCorruption":
+                        return "Corruption";
+                    case "TimeCorruption":
+                        return "Time";
+                }
+                break;
+            case 111: // 상대는 내가 목표라는 것을 알고 있고 천적이 아니라고 생각함
+                switch (card1)
+                {
+                    case "ElementAttack":
+                        return "Attack";
+                    case "ElementLife":
+                        return "Element";
+                    case "ElementLight":
+                        return "Element";
+                    case "ElementDark":
+                        return "Element";
+                    case "ElementTime":
+                        return "Element";
+                    case "ElementCorruption":
+                        return "Corruption";
+                    case "AttackAttack":
+                        return "Attack";
+                    case "AttackLife":
+                        return "Attack";
+                    case "AttackLight":
+                        return "Attack";
+                    case "AttackDark":
+                        return "Attack";
+                    case "AttackTime":
+                        return "Attack";
+                    case "AttackCorruption":
+                        return "Attack";
+                    case "LifeLight":
+                        return "Light";
+                    case "LifeDark":
+                        return "Dark";
+                    case "LifeTime":
+                        return "Life";
+                    case "LifeCorruption":
+                        return "Corruption";
+                    case "LightDark":
+                        return "Light";
+                    case "LightTime":
+                        return "Light";
+                    case "LightCorruption":
+                        return "Corruption";
+                    case "DarkTime":
+                        return "Time";
+                    case "DarkCorruption":
+                        return "Corruption";
+                    case "TimeCorruption":
+                        return "Corruption";
                 }
                 break;
         }
         // 위의 경우에 해당되지 않는 경우가 존재할지 모르겠지만
+        Debug.LogError(card1 + " is error in AIOpponentPlay.");
         return "Error!";
     }
 
@@ -2921,7 +3100,8 @@ public class PlayerControl : NetworkBehaviour
             Debug.Log("cd is null in AIScoreBehavior.");
             return;
         }
-        else if (!cd.VerifyCard(myCard) || !cd.VerifyCard(opponentCard))
+        else if (!cd.VerifyCard(myCard)
+            || (!cd.VerifyCard(opponentCard) && !opponentCard.Equals("Attack") && !opponentCard.Equals("Element")))
         {
             Debug.Log("myCard or opponentCard is invalid.");
             return;
@@ -2941,30 +3121,36 @@ public class PlayerControl : NetworkBehaviour
             Debug.Log("You don't have " + myCard + " card!");
             return;
         }
-        else if (hand[opponentPlayerIndex * 2] != opponentCard && hand[opponentPlayerIndex * 2 + 1] != opponentCard)
+        else if (!opponentCard.Equals("Attack") && !opponentCard.Equals("Element")
+            && hand[opponentPlayerIndex * 2] != opponentCard && hand[opponentPlayerIndex * 2 + 1] != opponentCard)
         {
             Debug.Log("You don't think your opponent has " + opponentCard + " card!");
             return;
         }
-        else if (playerClass < 0 || playerClass > 3)
+        else if (playerClass < 0 || (playerClass >= 3 && playerClass < 10) || (playerClass >= 13 && playerClass < 100)
+            || (playerClass >= 103 && playerClass < 110) || playerClass >= 113)
         {
-            Debug.Log("playerClass out of range [0, 3].");
+            Debug.Log("playerClass is invalid.");
             return;
         }
 
         int score = 0;
-        string voidCard = myCard;   // 만약 상대가 속임을 쓴다고 예측했다면, 내가 원래 내려던 카드를 기억한다.
+        string voidCard = myCard;   // 만약 상대가 시간을 쓴다고 예측했다면, 내가 원래 내려던 카드를 기억한다.
         int opponentHealth = bm.GetPlayers()[opponentPlayerIndex].GetHealth();
+        string opponentElement = "?";
+        if (GetUnveiled(opponentPlayerIndex)) opponentElement = GetElementName(bm.GetPlayerElement(opponentPlayerIndex));
 
-        // 내가 속임을 낼 경우의 점수는 상대가 내려고 하지 않았던 카드를 낼 때의 기준으로 계산된다.
-        if (myCard == "Deceive")
+        // 내가 시간을 낼 경우의 점수는 상대가 내려고 하지 않았던 카드를 낼 때의 기준으로 계산된다.
+        if (myCard == "Time")
         {
-            if (hand[opponentPlayerIndex * 2] == opponentCard)
+            if (hand[opponentPlayerIndex * 2].Equals(opponentCard)
+                || (cd.GetCardCode(hand[opponentPlayerIndex * 2]) == GetPlayerElement() && opponentCard.Equals("Element"))
+                || (cd.GetCardCode(hand[opponentPlayerIndex * 2]) < 5 && opponentCard.Equals("Attack")))
                 opponentCard = hand[opponentPlayerIndex * 2 + 1];
             else opponentCard = hand[opponentPlayerIndex * 2];
         }
-        // 상대가 속임을 낼 경우의 점수는 내가 내려고 하지 않았던 카드를 낼 때의 기준으로 계산된다.
-        else if (opponentCard == "Deceive")
+        // 상대가 시간을 낼 경우의 점수는 내가 내려고 하지 않았던 카드를 낼 때의 기준으로 계산된다.
+        else if (opponentCard == "Time")
         {
             if (hand[GetPlayerIndex() * 2] == myCard)
                 myCard = hand[GetPlayerIndex() * 2 + 1];
@@ -2972,301 +3158,369 @@ public class PlayerControl : NetworkBehaviour
         }
         switch (playerClass)
         {
-            case 0:
+            case 0:     // 목표인 상대
+            case 100:
+            case 10:
+            case 110:
                 switch (myCard)
                 {
-                    case "Attack":
+                    case "Fire":
+                    case "Water":
+                    case "Electricity":
+                    case "Wind":
+                    case "Poison":
+                        if (opponentElement.Equals(myCard))
+                        {
+                            // 내가 상대 속성의 카드를 내는 경우
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 20; break;
+                                case "Attack": score = 8; break;
+                                case "Life": score = 32; break;
+                                case "Light": score = 32; break;
+                                case "Dark": score = 25; break;
+                                case "Time": score = 25; break;
+                                case "Corruption": score = 16; break;
+                            }
+                        }
+                        else
+                        {
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 40; break;
+                                case "Attack": score = 18; break;
+                                case "Life": score = 52; break;
+                                case "Light": score = 52; break;
+                                case "Dark": score = 36; break;
+                                case "Time": score = 52; break;
+                                case "Corruption": score = 36; break;
+                            }
+                        }
+                        if ((playerClass % 100) / 10 == 1)
+                        {
+                            score -= 10; // 천적에게 교환할 확률 감소
+                            if (GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() * 2 + 2)
+                            {
+                                score -= 10;
+                            }
+                        }
+                        if (opponentHealth <= GetStatAttack() * 2 + 2) score += 7;
+                        break;
+                    case "Life":
                         switch (opponentCard)
                         {
+                            case "Element": score = 2; break;
                             case "Attack": score = 1; break;
-                            case "Heal": score = 3; break;
-                            case "Bomb": score = 1; break;
-                            case "Deceive": score = 2; break;
-                            case "Avoid": score = 3; break;
-                            case "Freeze": score = 2; break;
+                            case "Light": score = 5; break;
+                            case "Dark": score = 10; break;
+                            case "Time": score = 5; break;
+                            case "Corruption": score = 1; break;
                         }
+                        if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
+                        if (opponentHealth <= GetStatAttack() * 2 + 2) score -= 3;
                         break;
-                    case "Heal":
+                    case "Light":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 10; break;
-                            case "Heal": score = 18; break;
-                            case "Bomb": score = 10; break;
-                            case "Deceive": score = 13; break;
-                            case "Avoid": score = 9; break;
-                            case "Freeze": score = 13; break;
+                            case "Element": score = 13; break;
+                            case "Attack": score = 5; break;
+                            case "Life": score = 25; break;
+                            case "Dark": score = 34; break;
+                            case "Time": score = 18; break;
+                            case "Corruption": score = 9; break;
                         }
-                        if (opponentHealth <= 2) score += 6;
+                        if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
                         break;
-                    case "Bomb":
+                    case "Dark":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 4; break;
-                            case "Heal": score = 8; break;
-                            case "Deceive": score = 5; break;
-                            case "Avoid": score = 5; break;
-                            case "Freeze": score = 5; break;
+                            case "Element": score = 20; break;
+                            case "Attack": score = 18; break;
+                            case "Life": score = 4; break;
+                            case "Light": score = 4; break;
+                            case "Time": score = 4; break;
+                            case "Corruption": score = 4; break;
                         }
-                        if (GetHealth() <= 2) score += 12;
-                        if (bm.GetTurnPlayer().Equals(this)) score += 2;
-                        if (!bm.GetTurnPlayer().Equals(this) && opponentHealth <= 2) score /= 2;    // 상대가 죽으면 안됨
+                        if ((playerClass % 100) / 10 == 1)
+                        {
+                            score += 7; // 천적에게 교환할 확률 증가
+                            if (GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() * 2 + 2)
+                            {
+                                score += 9;
+                            }
+                        }
+                        if (opponentHealth <= GetStatAttack() * 2 + 2) score -= 5;
                         break;
-                    case "Deceive":
+                    case "Time":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 4; break;
-                            case "Heal": score = 8; break;
-                            case "Bomb": score = 4; break;
-                            case "Avoid": score = 5; break;
-                            case "Freeze": score = 5; break;
+                            case "Element": score = 4; break;
+                            case "Attack": score = 2; break;
+                            case "Life": score = 13; break;
+                            case "Light": score = 20; break;
+                            case "Dark": score = 29; break;
+                            case "Corruption": score = 4; break;
                         }
-                        if (GetHealth() <= 2) score /= 2;   // 아군을 속이는 것은 불리한 행동
+                        if (GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() * 2 + 2) score /= 2;
                         break;
-                    case "Avoid":
-                        switch (opponentCard)
+                    case "Corruption":
+                        if (statTactic == 1)
                         {
-                            case "Attack": score = 10; break;
-                            case "Heal": score = 18; break;
-                            case "Bomb": score = 10; break;
-                            case "Deceive": score = 13; break;
-                            case "Freeze": score = 13; break;
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 9; break;
+                                case "Attack": score = 2; break;
+                                case "Life": score = 9; break;
+                                case "Light": score = 9; break;
+                                case "Dark": score = 13; break;
+                                case "Time": score = 8; break;
+                            }
+                            break;
                         }
-                        if (opponentHealth <= 2) score += 4;
-                        break;
-                    case "Freeze":
-                        switch (opponentCard)
+                        else
                         {
-                            case "Attack": score = 4; break;
-                            case "Heal": score = 8; break;
-                            case "Bomb": score = 4; break;
-                            case "Deceive": score = 5; break;
-                            case "Avoid": score = 5; break;
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 29; break;
+                                case "Attack": score = 12; break;
+                                case "Life": score = 41; break;
+                                case "Light": score = 41; break;
+                                case "Dark": score = 50; break;
+                                case "Time": score = 29; break;
+                            }
                         }
+                        if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
                         break;
                 }
                 break;
-            case 1:
+            case 1:     // 목표가 아닌 상대
+            case 101:
+            case 11:
+            case 111:
                 switch (myCard)
                 {
-                    case "Attack":
-                        switch (opponentCard)
+                    case "Fire":
+                    case "Water":
+                    case "Electricity":
+                    case "Wind":
+                    case "Poison":
+                        if (opponentElement.Equals(myCard))
                         {
-                            case "Attack": score = 16; break;
-                            case "Heal": score = 20; break;
-                            case "Bomb": score = 16; break;
-                            case "Deceive": score = 17; break;
-                            case "Avoid": score = 16; break;
-                            case "Freeze": score = 17; break;
+                            // 내가 상대 속성의 카드를 내는 경우
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 4; break;
+                                case "Attack": score = 2; break;
+                                case "Life": score = 29; break;
+                                case "Light": score = 29; break;
+                                case "Dark": score = 29; break;
+                                case "Time": score = 4; break;
+                                case "Corruption": score = 4; break;
+                            }
                         }
-                        if (opponentHealth <= 2) score += 7;
+                        else
+                        {
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 2; break;
+                                case "Attack": score = 1; break;
+                                case "Life": score = 3; break;
+                                case "Light": score = 3; break;
+                                case "Dark": score = 5; break;
+                                case "Time": score = 1; break;
+                                case "Corruption": score = 1; break;
+                            }
+                        }
+                        if ((playerClass % 100) / 10 == 1) score -= 10;             // 천적에게 교환할 확률 감소
+                        if (opponentHealth <= GetStatAttack() * 2 + 2) score /= 2;  // 상대 체력이 낮으면 교환 확률 감소
                         break;
-                    case "Heal":
+                    case "Life":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 1; break;
-                            case "Heal": score = 3; break;
-                            case "Bomb": score = 1; break;
-                            case "Deceive": score = 2; break;
-                            case "Avoid": score = 3; break;
-                            case "Freeze": score = 2; break;
+                            case "Element": score = 36; break;
+                            case "Attack": score = 18; break;
+                            case "Light": score = 61; break;
+                            case "Dark": score = 45; break;
+                            case "Time": score = 52; break;
+                            case "Corruption": score = 36; break;
+                        }
+                        if ((playerClass % 100) / 10 == 0 && opponentHealth <= 20)
+                            score += 6; // 천적이 아닌 상대가 체력이 낮으면 확률 증가
+                        if ((playerClass % 100) / 10 == 1)
+                        {
+                            score -= 10; // 천적에게 교환할 확률 감소
+                            if (opponentHealth <= 20) score += 6;
+                            if (GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() * 2 + 2) score -= 5;
                         }
                         break;
-                    case "Bomb":
+                    case "Light":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 25; break;
-                            case "Heal": score = 29; break;
-                            case "Deceive": score = 26; break;
-                            case "Avoid": score = 26; break;
-                            case "Freeze": score = 26; break;
-                        }
-                        if (GetHealth() <= 2) score += 10;
-                        if (bm.GetTurnPlayer().Equals(this)) score += 5;
-                        if (GetHealth() <= 2 && bm.GetTurnPlayer().Equals(this)) score += 5;    // 유리한 교환
-                        if (opponentHealth <= 2 && !bm.GetTurnPlayer().Equals(this)) score += 5;
-                        break;
-                    case "Deceive":
-                        switch (opponentCard)
-                        {
-                            case "Attack": score = 4; break;
-                            case "Heal": score = 8; break;
-                            case "Bomb": score = 4; break;
-                            case "Avoid": score = 5; break;
-                            case "Freeze": score = 5; break;
-                        }
-                        if (GetHealth() <= 2) score /= 2;   // 아군을 속이는 것은 불리한 행동
-                        break;
-                    case "Avoid":
-                        switch (opponentCard)
-                        {
+                            case "Element": score = 16; break;
                             case "Attack": score = 8; break;
-                            case "Heal": score = 8; break;
-                            case "Bomb": score = 7; break;
-                            case "Deceive": score = 8; break;
-                            case "Freeze": score = 8; break;
+                            case "Life": score = 41; break;
+                            case "Dark": score = 32; break;
+                            case "Time": score = 32; break;
+                            case "Corruption": score = 16; break;
                         }
+                        if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
                         break;
-                    case "Freeze":
+                    case "Dark":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 9; break;
-                            case "Heal": score = 13; break;
-                            case "Bomb": score = 9; break;
-                            case "Deceive": score = 10; break;
-                            case "Avoid": score = 10; break;
+                            case "Element": score = 34; break;
+                            case "Attack": score = 34; break;
+                            case "Life": score = 9; break;
+                            case "Light": score = 9; break;
+                            case "Time": score = 13; break;
+                            case "Corruption": score = 5; break;
                         }
+                        if ((playerClass % 100) / 10 == 0 && opponentHealth <= 20)
+                            score += 4; // 천적이 아닌 상대가 체력이 낮으면 확률 증가
+                        if ((playerClass % 100) / 10 == 1)
+                        {
+                            score += 7; // 천적에게 교환할 확률 증가
+                            if (opponentHealth <= 20) score += 6;
+                            if (GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() * 2 + 2) score += 3;
+                        }
+                        break;
+                    case "Time":
+                        switch (opponentCard)
+                        {
+                            case "Element": score = 2; break;
+                            case "Attack": score = 1; break;
+                            case "Life": score = 26; break;
+                            case "Light": score = 26; break;
+                            case "Dark": score = 10; break;
+                            case "Corruption": score = 1; break;
+                        }
+                        break;
+                    case "Corruption":
+                        if (statTactic == 1)
+                        {
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 6; break;
+                                case "Attack": score = 2; break;
+                                case "Life": score = 8; break;
+                                case "Light": score = 8; break;
+                                case "Dark": score = 13; break;
+                                case "Time": score = 5; break;
+                            }
+                            break;
+                        }
+                        else
+                        {
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 24; break;
+                                case "Attack": score = 18; break;
+                                case "Life": score = 52; break;
+                                case "Light": score = 52; break;
+                                case "Dark": score = 45; break;
+                                case "Time": score = 37; break;
+                            }
+                        }
+                        if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
                         break;
                 }
                 break;
-            case 2:
+            case 2:     // 속성을 모르는 상대
+            case 102:
+            case 12:
+            case 112:
                 switch (myCard)
                 {
-                    case "Attack":
+                    case "Fire":
+                    case "Water":
+                    case "Electricity":
+                    case "Wind":
+                    case "Poison":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 1; break;
-                            case "Heal": score = 3; break;
-                            case "Bomb": score = 1; break;
-                            case "Deceive": score = 3; break;
-                            case "Avoid": score = 3; break;
-                            case "Freeze": score = 2; break;
-                        }
-                        break;
-                    case "Heal":
-                        switch (opponentCard)
-                        {
-                            case "Attack": score = 9; break;
-                            case "Heal": score = 13; break;
-                            case "Bomb": score = 9; break;
-                            case "Deceive": score = 13; break;
-                            case "Avoid": score = 9; break;
-                            case "Freeze": score = 10; break;
-                        }
-                        if (GetHealth() <= 2) score -= 5;   // 천적 피하기
-                        if (opponentHealth <= 2) score += 6;
-                        break;
-                    case "Bomb":
-                        switch (opponentCard)
-                        {
-                            case "Attack": score = 4; break;
-                            case "Heal": score = 8; break;
-                            case "Deceive": score = 8; break;
-                            case "Avoid": score = 5; break;
-                            case "Freeze": score = 5; break;
-                        }
-                        if (GetHealth() <= 2) score += 8;
-                        if (bm.GetTurnPlayer().Equals(this)) score += 2;
-                        if (GetHealth() <= 2 && bm.GetTurnPlayer().Equals(this)) score -= 10;    // 천적 피하기
-                        if (!bm.GetTurnPlayer().Equals(this) && opponentHealth <= 2) score /= 2;    // 상대가 죽으면 안됨
-                        break;
-                    case "Deceive":
-                        switch (opponentCard)
-                        {
-                            case "Attack": score = 9; break;
-                            case "Heal": score = 13; break;
-                            case "Bomb": score = 9; break;
-                            case "Avoid": score = 10; break;
-                            case "Freeze": score = 10; break;
-                        }
-                        break;
-                    case "Avoid":
-                        switch (opponentCard)
-                        {
+                            case "Element": score = 25; break;
                             case "Attack": score = 12; break;
-                            case "Heal": score = 12; break;
-                            case "Bomb": score = 11; break;
-                            case "Deceive": score = 12; break;
-                            case "Freeze": score = 12; break;
+                            case "Life": score = 41; break;
+                            case "Light": score = 50; break;
+                            case "Dark": score = 29; break;
+                            case "Time": score = 34; break;
+                            case "Corruption": score = 25; break;
                         }
-                        if (opponentHealth <= 2) score += 6;
-                        if (GetHealth() <= 2) score += 3;
+                        if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
                         break;
-                    case "Freeze":
+                    case "Life":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 11; break;
-                            case "Heal": score = 15; break;
-                            case "Bomb": score = 11; break;
-                            case "Deceive": score = 15; break;
-                            case "Avoid": score = 11; break;
+                            case "Element": score = 9; break;
+                            case "Attack": score = 5; break;
+                            case "Light": score = 18; break;
+                            case "Dark": score = 25; break;
+                            case "Time": score = 9; break;
+                            case "Corruption": score = 9; break;
                         }
-                        if (GetHealth() <= 2) score -= 5;   // 천적 피하기
+                        if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
                         break;
-                }
-                break;
-            case 3:
-                switch (myCard)
-                {
-                    case "Attack":
+                    case "Light":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 14; break;
-                            case "Heal": score = 18; break;
-                            case "Bomb": score = 14; break;
-                            case "Deceive": score = 18; break;
-                            case "Avoid": score = 14; break;
-                            case "Freeze": score = 15; break;
+                            case "Element": score = 49; break;
+                            case "Attack": score = 24; break;
+                            case "Life": score = 65; break;
+                            case "Dark": score = 58; break;
+                            case "Time": score = 61; break;
+                            case "Corruption": score = 49; break;
                         }
-                        if (opponentHealth <= 2) score += 7;
-                        if (GetHealth() <= 2) score -= 10;  // 천적 피하기
+                        if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
                         break;
-                    case "Heal":
+                    case "Dark":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 1; break;
-                            case "Heal": score = 3; break;
-                            case "Bomb": score = 1; break;
-                            case "Deceive": score = 3; break;
-                            case "Avoid": score = 3; break;
-                            case "Freeze": score = 2; break;
-                        }
-                        if (GetHealth() <= 2 && score > 3) score = 3;   // 천적 피하기
-                        break;
-                    case "Bomb":
-                        switch (opponentCard)
-                        {
-                            case "Attack": score = 25; break;
-                            case "Heal": score = 29; break;
-                            case "Deceive": score = 29; break;
-                            case "Avoid": score = 26; break;
-                            case "Freeze": score = 26; break;
-                        }
-                        if (GetHealth() <= 2) score += 5;
-                        if (bm.GetTurnPlayer().Equals(this)) score += 5;
-                        if (opponentHealth <= 2 && !bm.GetTurnPlayer().Equals(this)) score += 5;
-                        if (GetHealth() <= 2 && bm.GetTurnPlayer().Equals(this)) score -= 20;   // 천적 피하기
-                        break;
-                    case "Deceive":
-                        switch (opponentCard)
-                        {
-                            case "Attack": score = 9; break;
-                            case "Heal": score = 13; break;
-                            case "Bomb": score = 9; break;
-                            case "Avoid": score = 10; break;
-                            case "Freeze": score = 10; break;
+                            case "Element": score = 29; break;
+                            case "Attack": score = 36; break;
+                            case "Life": score = 4; break;
+                            case "Light": score = 5; break;
+                            case "Time": score = 4; break;
+                            case "Corruption": score = 2; break;
                         }
                         break;
-                    case "Avoid":
+                    case "Time":
                         switch (opponentCard)
                         {
-                            case "Attack": score = 10; break;
-                            case "Heal": score = 10; break;
-                            case "Bomb": score = 9; break;
-                            case "Deceive": score = 10; break;
-                            case "Freeze": score = 10; break;
+                            case "Element": score = 4; break;
+                            case "Attack": score = 2; break;
+                            case "Life": score = 13; break;
+                            case "Light": score = 20; break;
+                            case "Dark": score = 20; break;
+                            case "Corruption": score = 4; break;
                         }
-                        if (GetHealth() <= 2) score += 9;
                         break;
-                    case "Freeze":
-                        switch (opponentCard)
+                    case "Corruption":
+                        if (statTactic == 1)
                         {
-                            case "Attack": score = 9; break;
-                            case "Heal": score = 13; break;
-                            case "Bomb": score = 9; break;
-                            case "Deceive": score = 13; break;
-                            case "Avoid": score = 9; break;
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 6; break;
+                                case "Attack": score = 2; break;
+                                case "Life": score = 8; break;
+                                case "Light": score = 8; break;
+                                case "Dark": score = 13; break;
+                                case "Time": score = 5; break;
+                            }
+                            break;
                         }
-                        if (GetHealth() <= 2) score -= 5;   // 천적 피하기
+                        else
+                        {
+                            switch (opponentCard)
+                            {
+                                case "Element": score = 35; break;
+                                case "Attack": score = 24; break;
+                                case "Life": score = 61; break;
+                                case "Light": score = 61; break;
+                                case "Dark": score = 54; break;
+                                case "Time": score = 50; break;
+                            }
+                        }
+                        if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
                         break;
                 }
                 break;
@@ -3275,8 +3529,8 @@ public class PlayerControl : NetworkBehaviour
 
         score = score * score;  // 유리한 행동을 할 확률과 불리한 행동을 할 확률의 차이를 크게 벌린다.
 
-        // 상대가 속임을 낼 것이라면, 뽑기에 넣기 전에 내가 원래 내려던 카드로 다시 바꿔준다.
-        if (opponentCard == "Deceive")
+        // 상대가 시간을 낼 것이라면, 뽑기에 넣기 전에 내가 원래 내려던 카드로 다시 바꿔준다.
+        if (opponentCard == "Time")
         {
             myCard = voidCard;
         }
