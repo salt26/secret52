@@ -62,23 +62,23 @@ public class CardDatabase : MonoBehaviour {
         cardInfo.Add(ci);
 
         // 생명 카드
-        ci = new CardInfo("Life", "생명", "낼 때 체력을 5 회복합니다. 받을 때 체력을 5 회복합니다. 최대 체력은 52입니다.", new Color(0.357f, 0.867f, 0.22f));
+        ci = new CardInfo("Life", "생명", "낼 때 체력을 5 회복합니다. 받을 때 체력을 5 회복합니다. 최대 체력은 52입니다.\n(이 카드는 항상 모두에게 공개됩니다.)", new Color(0.357f, 0.867f, 0.22f));
         cardInfo.Add(ci);
 
         // 빛 카드
-        ci = new CardInfo("Light", "빛", "낼 때 권력을 1 얻고 상대 마법사의 속성을 확인합니다. 받을 때 권력을 1 얻습니다.", new Color(1f, 1f, 0.184f));
+        ci = new CardInfo("Light", "빛", "낼 때 권력을 1 얻고 상대 마법사의 속성을 확인합니다. 받을 때 권력을 1 얻습니다.\n(이 카드는 항상 모두에게 공개됩니다.)", new Color(1f, 1f, 0.184f));
         cardInfo.Add(ci);
         
         // 어둠 카드
-        ci = new CardInfo("Dark", "어둠", "낼 때 상대에게서 받는 카드의 받을 때 효과를 무시합니다.", new Color(0.329f, 0.329f, 0.329f));
+        ci = new CardInfo("Dark", "어둠", "낼 때 상대에게서 받는 카드의 받을 때 효과를 무시합니다.\n(이 카드는 항상 모두에게 공개됩니다.)", new Color(0.329f, 0.329f, 0.329f));
         cardInfo.Add(ci);
 
         // 시간 카드
-        ci = new CardInfo("Time", "시간", "낼 때 상대가 내려고 했던 카드를 내지 못하게 하는 대신 들고 있던 카드를 내도록 하여 자신이 받습니다.", new Color(1f, 0.514f, 0.365f));
+        ci = new CardInfo("Time", "시간", "낼 때 상대가 내려고 했던 카드를 내지 못하게 하는 대신 들고 있던 카드를 내도록 하여 자신이 받습니다.\n(이 카드는 항상 모두에게 공개됩니다.)", new Color(1f, 0.514f, 0.365f));
         cardInfo.Add(ci);
 
         // 타락 카드
-        ci = new CardInfo("Corruption", "타락", "들고 있는 동안 자신의 턴이 끝나면 공격력을 1 얻고 정신력을 1 잃습니다. 최소 정신력은 1입니다.", new Color(0.475f, 0.208f, 0.871f));
+        ci = new CardInfo("Corruption", "타락", "들고 있는 동안 자신의 턴이 끝나면 공격력을 1 얻고 정신력을 1 잃습니다. 최소 정신력은 1입니다.\n(이 카드는 항상 모두에게 공개됩니다.)", new Color(0.475f, 0.208f, 0.871f));
         cardInfo.Add(ci);
 
     }

@@ -10,8 +10,9 @@ public class TooltipUI : MonoBehaviour {
     public Image border;
     private RectTransform rect;
     private bool isDisappearing;
+    private float time;
 
-    private void Awake()
+    void Awake()
     {
         //background = GetComponent<Image>();
         background.color = new Color(0f, 0f, 0f, 0f);
@@ -24,6 +25,15 @@ public class TooltipUI : MonoBehaviour {
         rect.anchorMin = new Vector2(0.01f, 0.321f);
         rect.anchorMax = new Vector2(0.99f, 0.43f);
         isDisappearing = false;
+        time = Time.time;
+    }
+
+    void FixedUpdate()
+    {
+        if (Time.time >= time + 10f)
+        {
+            Disappear();
+        }
     }
 
     public void SetText(string body)
