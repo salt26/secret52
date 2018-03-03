@@ -841,7 +841,7 @@ public class BattleManager : NetworkBehaviour
     public void RpcPrintLog(string msg)
     {
         //ConsoleLogUI.AddText(msg);
-        Debug.Log(msg);
+        //Debug.Log(msg);
     }
 
     [ClientRpc]

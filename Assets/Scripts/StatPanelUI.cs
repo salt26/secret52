@@ -240,7 +240,7 @@ public class StatPanelUI : MonoBehaviour {
     {
         if (pc == null) return;
         player = pc;
-        Debug.Log("SetLocalPlayer " + player.GetName());
+        //Debug.Log("SetLocalPlayer " + player.GetName());
     }
 
     public void Confirm()

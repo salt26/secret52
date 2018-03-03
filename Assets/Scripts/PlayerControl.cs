@@ -232,7 +232,7 @@ public class PlayerControl : NetworkBehaviour
         }
         if (isLocalPlayer && spUI == null && StatPanelUI.statPanelUI != null)
         {
-            Debug.Log("StatPanelUI is not null.");
+            //Debug.Log("StatPanelUI is not null.");
             spUI = StatPanelUI.statPanelUI;
             spUI.SetLocalPlayer(this);
         }
@@ -2623,10 +2623,12 @@ public class PlayerControl : NetworkBehaviour
         for (int i = 0; i < 10; i++)
         {
             m += " " + ((i/2)+1) + handName[i];
+            /*
             for (int j = 0; j < i; j++)
             {
                 if (!handName[i].Equals("?") && handName[j].Equals(handName[i])) Debug.LogError("Duplicated in AIHandEstimation!");
             }
+            */
         }
         Log(m);
         if (isServer) bm.RpcPrintLog(m);
@@ -2732,7 +2734,7 @@ public class PlayerControl : NetworkBehaviour
         if (cd.GetCardCode(card1) == GetPlayerElement() && playerClass >= 100)
         {
             card1 = "Element";
-            Debug.LogWarning("We found Element in AIOpponentPlay!");
+            //Debug.LogWarning("We found Element in AIOpponentPlay!");
         }
         else if (cd.GetCardCode(card1) < 5)
         {
@@ -2743,7 +2745,7 @@ public class PlayerControl : NetworkBehaviour
         if (cd.GetCardCode(card2) == GetPlayerElement() && playerClass >= 100)
         {
             card2 = "Element";
-            Debug.LogWarning("We found Element in AIOpponentPlay!");
+            //Debug.LogWarning("We found Element in AIOpponentPlay!");
         }
         else if (cd.GetCardCode(card2) < 5)
         {
