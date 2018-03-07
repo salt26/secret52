@@ -3177,7 +3177,7 @@ public class PlayerControl : NetworkBehaviour
                             switch (opponentCard)
                             {
                                 case "Element": score = 20; break;
-                                case "Attack": score = 8; break;
+                                case "Attack": score = 10 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                                 case "Life": score = 32; break;
                                 case "Light": score = 32; break;
                                 case "Dark": score = 25; break;
@@ -3190,7 +3190,7 @@ public class PlayerControl : NetworkBehaviour
                             switch (opponentCard)
                             {
                                 case "Element": score = 40; break;
-                                case "Attack": score = 18; break;
+                                case "Attack": score = 20 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                                 case "Life": score = 52; break;
                                 case "Light": score = 52; break;
                                 case "Dark": score = 36; break;
@@ -3207,6 +3207,9 @@ public class PlayerControl : NetworkBehaviour
                             }
                         }
                         if (opponentHealth <= GetStatAttack() * 2 + 2) score += 7;
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Life":
                         switch (opponentCard)
@@ -3225,13 +3228,16 @@ public class PlayerControl : NetworkBehaviour
                         switch (opponentCard)
                         {
                             case "Element": score = 13; break;
-                            case "Attack": score = 5; break;
+                            case "Attack": score = 7 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                             case "Life": score = 25; break;
                             case "Dark": score = 34; break;
                             case "Time": score = 18; break;
                             case "Corruption": score = 9; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Dark":
                         switch (opponentCard)
@@ -3264,6 +3270,9 @@ public class PlayerControl : NetworkBehaviour
                             case "Corruption": score = 4; break;
                         }
                         if (GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() * 2 + 2) score /= 2;
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Corruption":
                         if (statTactic == 1)
@@ -3284,7 +3293,7 @@ public class PlayerControl : NetworkBehaviour
                             switch (opponentCard)
                             {
                                 case "Element": score = 29; break;
-                                case "Attack": score = 12; break;
+                                case "Attack": score = 14 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                                 case "Life": score = 41; break;
                                 case "Light": score = 41; break;
                                 case "Dark": score = 50; break;
@@ -3292,6 +3301,10 @@ public class PlayerControl : NetworkBehaviour
                             }
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
+                        if (GetStatMentality() < statMntlMinAI) score += 10;    // 정신력에 투자하는 중에는 낼 확률 증가
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                 }
                 break;
@@ -3335,12 +3348,15 @@ public class PlayerControl : NetworkBehaviour
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10;             // 천적에게 교환할 확률 감소
                         if (opponentHealth <= GetStatAttack() * 2 + 2) score /= 2;  // 상대 체력이 낮으면 교환 확률 감소
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Life":
                         switch (opponentCard)
                         {
                             case "Element": score = 36; break;
-                            case "Attack": score = 18; break;
+                            case "Attack": score = 20 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                             case "Light": score = 61; break;
                             case "Dark": score = 45; break;
                             case "Time": score = 52; break;
@@ -3354,18 +3370,24 @@ public class PlayerControl : NetworkBehaviour
                             if (opponentHealth <= 20) score += 6;
                             if (GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() * 2 + 2) score -= 5;
                         }
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Light":
                         switch (opponentCard)
                         {
                             case "Element": score = 16; break;
-                            case "Attack": score = 8; break;
+                            case "Attack": score = 10 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                             case "Life": score = 41; break;
                             case "Dark": score = 32; break;
                             case "Time": score = 32; break;
                             case "Corruption": score = 16; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Dark":
                         switch (opponentCard)
@@ -3416,7 +3438,7 @@ public class PlayerControl : NetworkBehaviour
                             switch (opponentCard)
                             {
                                 case "Element": score = 24; break;
-                                case "Attack": score = 18; break;
+                                case "Attack": score = 20 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                                 case "Life": score = 52; break;
                                 case "Light": score = 52; break;
                                 case "Dark": score = 45; break;
@@ -3424,6 +3446,10 @@ public class PlayerControl : NetworkBehaviour
                             }
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
+                        if (GetStatMentality() < statMntlMinAI) score += 10;    // 정신력에 투자하는 중에는 낼 확률 증가
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                 }
                 break;
@@ -3441,7 +3467,7 @@ public class PlayerControl : NetworkBehaviour
                         switch (opponentCard)
                         {
                             case "Element": score = 25; break;
-                            case "Attack": score = 12; break;
+                            case "Attack": score = 14 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                             case "Life": score = 41; break;
                             case "Light": score = 50; break;
                             case "Dark": score = 29; break;
@@ -3449,30 +3475,39 @@ public class PlayerControl : NetworkBehaviour
                             case "Corruption": score = 25; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Life":
                         switch (opponentCard)
                         {
                             case "Element": score = 9; break;
-                            case "Attack": score = 5; break;
+                            case "Attack": score = 7 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                             case "Light": score = 18; break;
                             case "Dark": score = 25; break;
                             case "Time": score = 9; break;
                             case "Corruption": score = 9; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Light":
                         switch (opponentCard)
                         {
                             case "Element": score = 49; break;
-                            case "Attack": score = 24; break;
+                            case "Attack": score = 26 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                             case "Life": score = 65; break;
                             case "Dark": score = 58; break;
                             case "Time": score = 61; break;
                             case "Corruption": score = 49; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                     case "Dark":
                         switch (opponentCard)
@@ -3515,7 +3550,7 @@ public class PlayerControl : NetworkBehaviour
                             switch (opponentCard)
                             {
                                 case "Element": score = 35; break;
-                                case "Attack": score = 24; break;
+                                case "Attack": score = 26 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
                                 case "Life": score = 61; break;
                                 case "Light": score = 61; break;
                                 case "Dark": score = 54; break;
@@ -3523,6 +3558,10 @@ public class PlayerControl : NetworkBehaviour
                             }
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
+                        if (GetStatMentality() < statMntlMinAI) score += 10;    // 정신력에 투자하는 중에는 낼 확률 증가
+                        if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
+                            && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
+                            score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
                         break;
                 }
                 break;
