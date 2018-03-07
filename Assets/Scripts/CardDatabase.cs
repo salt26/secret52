@@ -78,7 +78,7 @@ public class CardDatabase : MonoBehaviour {
         cardInfo.Add(ci);
 
         // 타락 카드
-        ci = new CardInfo("Corruption", "타락", "들고 있는 동안 자신의 턴이 끝나면 공격력을 1 얻고 정신력을 1 잃습니다. 최소 정신력은 1입니다.\n(이 카드는 항상 모두에게 공개됩니다.)", new Color(0.475f, 0.208f, 0.871f));
+        ci = new CardInfo("Corruption", "타락", "들고 있는 동안 자신의 턴이 끝나면 공격력을 1 얻고 정신력을 2 잃습니다. 최소 정신력은 1입니다.\n(이 카드는 항상 모두에게 공개됩니다.)", new Color(0.475f, 0.208f, 0.871f));
         cardInfo.Add(ci);
 
     }

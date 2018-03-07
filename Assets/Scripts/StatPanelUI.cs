@@ -159,14 +159,14 @@ public class StatPanelUI : MonoBehaviour {
         }
 
         if (isDistribTime && !isConfirmed) { 
-            if (canUpAttack && (currentAttack >= 99 || currentExperience < 5))
+            if (canUpAttack && (currentAttack >= 99 || currentExperience < 4))
             {
                 canUpAttack = false;
                 uAtckButton.color = SetAlphaTo96(uAtckButton.color);
                 uAtckText.color = SetAlphaTo96(uAtckText.color);
                 uAtckButton.GetComponent<Button>().interactable = false;
             }
-            if (!canUpAttack && currentAttack < 99 && currentExperience >= 5)
+            if (!canUpAttack && currentAttack < 99 && currentExperience >= 4)
             {
                 canUpAttack = true;
                 uAtckButton.color = SetAlphaTo255(uAtckButton.color);
@@ -174,14 +174,14 @@ public class StatPanelUI : MonoBehaviour {
                 uAtckButton.GetComponent<Button>().interactable = true;
             }
 
-            if (canUpAuthority && (currentAuthority >= 99 || currentExperience < 5))
+            if (canUpAuthority && (currentAuthority >= 99 || currentExperience < 2))
             {
                 canUpAuthority = false;
                 uAthrButton.color = SetAlphaTo96(uAthrButton.color);
                 uAthrText.color = SetAlphaTo96(uAthrText.color);
                 uAthrButton.GetComponent<Button>().interactable = false;
             }
-            if (!canUpAuthority && currentAuthority < 99 && currentExperience >= 5)
+            if (!canUpAuthority && currentAuthority < 99 && currentExperience >= 2)
             {
                 canUpAuthority = true;
                 uAthrButton.color = SetAlphaTo255(uAthrButton.color);

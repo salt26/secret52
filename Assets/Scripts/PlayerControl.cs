@@ -24,7 +24,7 @@ public class PlayerControl : NetworkBehaviour
     [SerializeField] [SyncVar] private int statAttack;      // 현재 공격력(외부 열람 가능)
     [SerializeField] [SyncVar] private int statAuthority;   // 현재 권력(외부 열람 가능)
     [SerializeField] [SyncVar] private int statMentality;   // 현재 정신력(외부 열람 가능)
-    [SerializeField] [SyncVar] private int experience = 0;      // 현재 남은 경험치
+    [SerializeField] [SyncVar] private int experience;      // 현재 남은 경험치
     [SyncVar] private bool isFreezed = false;                   // 빙결 여부(true이면 다음 한 번의 내 턴에 교환 불가)
 
     private List<bool> unveiled = new List<bool>();
@@ -118,14 +118,14 @@ public class PlayerControl : NetworkBehaviour
         isThinking = false;
         isCardDragging = false;
         isShowingChange = false;
-        statAttack = 4;     // 초기값 4로 설정
+        statAttack = 3;     // 초기값 3으로 설정
         statAuthority = 1;  // 초기값 1로 설정
-        statMentality = 6;  // 초기값 6으로 설정
+        statMentality = 3;  // 초기값 3으로 설정
+        experience = 2;     // 초기값 2로 설정
         currentAttack = statAttack;
         currentAuthority = statAuthority;
         currentMentality = statMentality;
         currentExperience = experience;
-        experience = 0;
         for (int i = 0; i < 5; i++)
         {
             unveiled.Add(false);
@@ -510,7 +510,7 @@ public class PlayerControl : NetworkBehaviour
         if (!isServer) return;
         if (currentAttack < 99) currentAttack++;
         else currentAttack = 99;
-        if (currentMentality > 1) currentMentality--;
+        if (currentMentality > 2) currentMentality -= 2;
         else currentMentality = 1;
     }
 
@@ -748,34 +748,34 @@ public class PlayerControl : NetworkBehaviour
     }
 
     /// <summary>
-    /// 능력치 분배 시에 경험치를 5 소모하여 권력을 1 올리는 함수입니다.
+    /// 능력치 분배 시에 경험치를 2 소모하여 권력을 1 올리는 함수입니다.
     /// 클라이언트에서만 호출 가능합니다.
     /// TODO 네트워크 상에서 잘 작동하는지 확인하기
     /// </summary>
     public void StatAuthorityUp()
     {
         if (!isLocalPlayer || bm == null || bm.GetPlayerConfirmStat(GetPlayerIndex())) return;
-        if (currentAuthority < 99 && currentExperience >= 5)
+        if (currentAuthority < 99 && currentExperience >= 2)
         {
             currentAuthority++;
-            currentExperience -= 5;
+            currentExperience -= 2;
             CmdSetAuthority(currentAuthority);
             CmdSetExperience(currentExperience);
         }
     }
 
     /// <summary>
-    /// 능력치 분배 시에 경험치를 5 소모하여 공격력을 1 올리는 함수입니다.
+    /// 능력치 분배 시에 경험치를 4 소모하여 공격력을 1 올리는 함수입니다.
     /// 클라이언트에서만 호출 가능합니다.
     /// TODO 네트워크 상에서 잘 작동하는지 확인하기
     /// </summary>
     public void StatAttackUp()
     {
         if (!isLocalPlayer || bm == null || bm.GetPlayerConfirmStat(GetPlayerIndex())) return;
-        if (currentAttack < 99 && currentExperience >= 5)
+        if (currentAttack < 99 && currentExperience >= 4)
         {
             currentAttack++;
-            currentExperience -= 5;
+            currentExperience -= 4;
             CmdSetAttack(currentAttack);
             CmdSetExperience(currentExperience);
         }
