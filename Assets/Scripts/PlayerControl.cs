@@ -118,7 +118,7 @@ public class PlayerControl : NetworkBehaviour
         isThinking = false;
         isCardDragging = false;
         isShowingChange = false;
-        statAttack = 3;     // 초기값 3으로 설정
+        statAttack = 4;     // 초기값 4로 설정
         statAuthority = 1;  // 초기값 1로 설정
         statMentality = 3;  // 초기값 3으로 설정
         experience = 2;     // 초기값 2로 설정
@@ -571,7 +571,7 @@ public class PlayerControl : NetworkBehaviour
             RpcChanged(HealthChange);
         }
 
-        if (statAttack < currentAttack && statMentality > currentMentality)
+        if (statAttack < currentAttack && statMentality >= currentMentality)
         {
             RpcCorrupted(); // 타락함
         }
@@ -1212,44 +1212,52 @@ public class PlayerControl : NetworkBehaviour
         }
 
         List<int> randomBox = new List<int>();
-        randomBox.Add(6);
-        for (int i = 0; i < 3; i++)
+        randomBox.Add(3);
+        for (int i = 0; i < 4; i++)
         {
-            randomBox.Add(6);
-            randomBox.Add(7);
+            randomBox.Add(3);
+            randomBox.Add(4);
         }
+        randomBox.Add(5);
         for (int i = 0; i < 2; i++)
         {
-            randomBox.Add(8);
-            randomBox.Add(9);
+            randomBox.Add(5);
+            randomBox.Add(6);
         }
-        randomBox.Add(10);
-        randomBox.Add(11);
+        randomBox.Add(7);
+        randomBox.Add(8);
+        randomBox.Add(9);
         statMntlMaxAI = randomBox[Random.Range(0, randomBox.Count)];
 
         randomBox.Clear();
         randomBox.Add(1);
         randomBox.Add(2);
-        randomBox.Add(3);
-        randomBox.Add(4);
         for (int i = 0; i < 3; i++)
+        {
+            randomBox.Add(3);
+        }
+        if (statMntlMaxAI >= 5)
+        {
+            randomBox.Add(3);
+            randomBox.Add(4);
+        }
+        for (int i = 0; i < 2; i++)
+        {
+            if (statMntlMaxAI >= 4)
+            {
+                randomBox.Add(4);
+            }
+            if (statMntlMaxAI >= 5)
+            {
+                randomBox.Add(5);
+            }
+        }
+        if (statMntlMaxAI >= 6)
         {
             randomBox.Add(5);
             randomBox.Add(6);
         }
-        if (statMntlMaxAI >= 8) randomBox.Add(6);
-        for (int i = 0; i < 2; i++)
-        {
-            if (statMntlMaxAI >= 7)
-            {
-                randomBox.Add(7);
-            }
-            if (statMntlMaxAI >= 8)
-            {
-                randomBox.Add(8);
-            }
-        }
-        for (int i = 9; i < statMntlMaxAI; i++)
+        for (int i = 6; i <= statMntlMaxAI; i++)
         {
             randomBox.Add(i);
         }
@@ -1260,29 +1268,44 @@ public class PlayerControl : NetworkBehaviour
         {
             randomBox.Add(0);
         }
-        for (int i = 0; i < 8 - statMntlMinAI; i += 2)
+        if (statMntlMinAI > 1)
         {
-            // 정신력 최소 유지치가 낮으면 공격력 테크를 탈 가능성이 높아진다.
+            for (int i = 0; i <= 5 - statMntlMinAI; i += 2)
+            {
+                // 정신력 최소 유지치가 낮으면 공격력 테크를 탈 가능성이 높아진다.
+                randomBox.Add(1);
+            }
+        }
+        if (statMntlMaxAI <= 5) randomBox.Add(1);
+        for (int i = 0; i < 3; i++)
+        {
             randomBox.Add(1);
         }
-        if (statMntlMaxAI < 7) randomBox.Add(1);
-        for (int i = 0; i < 2; i++)
-        {
-            randomBox.Add(1);
-        }
-        for (int i = 0; i < statMntlMinAI - 5; i += 2)
+        for (int i = 0; i < statMntlMinAI - 2; i += 2)
         {
             // 정신력 최소 유지치가 높으면 권력 테크를 탈 가능성이 높아진다.
             randomBox.Add(2);
         }
-        for (int i = 0; i < 3; i++)
+        if (statMntlMinAI > 1)
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                randomBox.Add(2);
+            }
+        }
+        if (statMntlMinAI == 1)
         {
             randomBox.Add(2);
+            randomBox.Add(2);
+
+            // 정신력 최소 유지치가 1일 때에만 타락 테크를 탈 수 있다.
+            for (int i = 0; i < 5; i++) randomBox.Add(3);
         }
         statTactic = randomBox[Random.Range(0, randomBox.Count)];
         // statTactic이 0이면 권력과 공격력을 랜덤으로 반반씩 올린다.
         // 1이면 공격력 위주로 올린다.
         // 2이면 권력 위주로 올린다.
+        // 3이면 정신력을 올리지 않고 타락을 손에 쟁여놓는다.
     }
 
     /*
@@ -2019,6 +2042,20 @@ public class PlayerControl : NetworkBehaviour
         }
         */
 
+        // 타락 테크가 아닌데 어떤 이유로 정신력이 1이 되면 1/3 확률로 타락 테크로 전향한다.
+        if (currentMentality == 1 && statTactic != 3 && Random.Range(0, 3) == 0)
+        {
+            statMntlMinAI = 1;
+            statMntlMaxAI = 0;
+            statTactic = 3;
+        }
+
+        // 타락 테크일 때 정신력 최대 목표치에 도달하지 못하더라도 정신력이 2 이하가 되면 정신력 올리기를 포기한다.
+        if (currentMentality <= 2 && statTactic == 3 && statMntlMaxAI > 0)
+        {
+            statMntlMaxAI = 0;
+        }
+
         // 정신력 최대 목표치를 달성할 때까지 정신력을 최우선으로 올린다.
         while (currentMentality < statMntlMaxAI && currentExperience >= currentMentality + 1)
         {
@@ -2041,19 +2078,19 @@ public class PlayerControl : NetworkBehaviour
             for (int i = 0; i < 5; i++)
             {
                 if (i == GetPlayerIndex()) continue;
-                if (bm.GetPlayers()[i].GetStatAuthority() > GetStatAuthority() - 3
-                    && bm.GetPlayers()[i].GetStatAuthority() < GetStatAuthority() + 3)
+                if (bm.GetPlayers()[i].GetStatAuthority() > GetStatAuthority() - 5
+                    && bm.GetPlayers()[i].GetStatAuthority() < GetStatAuthority() + 5)
                 {
                     upDown3 = false;
                     break;
                 }
             }
 
-            // 자신과 권력이 2 이하로 차이나는 플레이어가 존재하지 않으면 권력을 올릴 필요가 없다.
+            // 자신과 권력이 4 이하로 차이나는 플레이어가 존재하지 않으면 권력을 올릴 필요가 없다.
             // 다만 위 조건이 만족되어도 25% 확률로 공격력만을 올리지 않을 수 있다.
             if (upDown3 && Random.Range(0, 4) > 0)
             {
-                while (currentExperience >= 5)
+                while (currentExperience >= 4)
                 {
                     AIAttackUp();
                     yield return null;
@@ -2084,7 +2121,7 @@ public class PlayerControl : NetworkBehaviour
         // 권력만 올려서 목표와 교환할 수 있게 해야 한다.
         if (onlyAthr)
         {
-            while (currentExperience >= 5)
+            while (currentExperience >= 2)
             {
                 AIAuthorityUp();
                 yield return null;
@@ -2103,7 +2140,7 @@ public class PlayerControl : NetworkBehaviour
                 {
                     // 내가 권력 1등인데 권력 꼴지가 나를 노리는 천적이고 권력 계층이 3단계 이상으로 분화되어 있으면
                     // 권력을 올리지 말아야 한다.
-                    while (currentExperience >= 5)
+                    while (currentExperience >= 4)
                     {
                         AIAttackUp();
                         yield return null;
@@ -2125,7 +2162,7 @@ public class PlayerControl : NetworkBehaviour
                 {
                     // 내가 권력 꼴지인데 권력 1등이 나의 목표인 것이 확실하고 권력 계층이 3단계 이상으로 분화되어 있으면
                     // 권력을 올리지 말아야 한다. (리스크가 큰 전략이기는 하다.)
-                    while (currentExperience >= 5)
+                    while (currentExperience >= 4)
                     {
                         AIAttackUp();
                         yield return null;
@@ -2135,9 +2172,16 @@ public class PlayerControl : NetworkBehaviour
             }
         }
 
+        // 타락 테크인 경우 공격력만 올린다.
+        while (currentExperience >= 4 && statTactic == 3)
+        {
+            AIAttackUp();
+            yield return null;
+        }
+
         // 위의 경우가 아니면 공격력과 권력 중 자신의 전략에 맞게 올린다.
         // 권력 계층이 2단계 이하로만 분화되어 있어 당장 권력이 의미가 없는 경우 공격력을 올릴 확률이 높아진다.
-        while (currentExperience >= 5)
+        while (currentExperience >= 4)
         {
             List<int> randomBox = new List<int>();
             
@@ -2145,9 +2189,9 @@ public class PlayerControl : NetworkBehaviour
             randomBox.Add(1);
             randomBox.Add(1);
 
-            if (statTactic == 1)
+            if (statTactic == 1 || statTactic == 3)
             {
-                // 공격력 테크
+                // 공격력 또는 타락 테크
                 randomBox.Add(1);
                 randomBox.Add(1);
                 randomBox.Add(1);
@@ -2177,6 +2221,8 @@ public class PlayerControl : NetworkBehaviour
             {
                 case 0:
                     AIAuthorityUp();
+                    yield return null;
+                    AIAuthorityUp();
                     break;
                 case 1:
                     AIAttackUp();
@@ -2186,6 +2232,13 @@ public class PlayerControl : NetworkBehaviour
             }
             yield return null;
             if (r == 2) break;
+        }
+
+        // 권력 테크인 경우 남는 경험치를 권력에 모두 투자한다.
+        while (currentExperience >= 2 && (statTactic == 2 || Random.Range(0, 2) == 0))
+        {
+            AIAuthorityUp();
+            yield return null;
         }
 
         bm.SetPlayerConfirmStat(GetPlayerIndex(), true);
@@ -2808,9 +2861,10 @@ public class PlayerControl : NetworkBehaviour
                     case "LifeTime":
                         return "Time";
                     case "LifeCorruption":
+                        /*
                         if (opponentHealth <= GetStatAttack() * 2 + 2)
                             return "Life";
-                        else return "Corruption";
+                        else */return "Corruption";
                     case "LightDark":
                         return "Light";
                     case "LightTime":
@@ -2820,9 +2874,9 @@ public class PlayerControl : NetworkBehaviour
                     case "DarkTime":
                         return "Time";
                     case "DarkCorruption":
-                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                        /*if (opponentHealth <= GetStatAttack() * 2 + 2)
                             return "Dark";
-                        else return "Corruption";
+                        else */return "Corruption";
                     case "TimeCorruption":
                         return "Corruption";
                 }
@@ -2903,9 +2957,9 @@ public class PlayerControl : NetworkBehaviour
                     case "LifeTime":
                         return "Time";
                     case "LifeCorruption":
-                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                        /*if (opponentHealth <= GetStatAttack() * 2 + 2)
                             return "Life";
-                        else return "Corruption";
+                        else*/ return "Corruption";
                     case "LightDark":
                         return "Dark";
                     case "LightTime":
@@ -2915,13 +2969,13 @@ public class PlayerControl : NetworkBehaviour
                     case "DarkTime":
                         return "Time";
                     case "DarkCorruption":
-                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                        /*if (opponentHealth <= GetStatAttack() * 2 + 2)
                             return "Dark";
-                        else return "Corruption";
+                        else*/ return "Corruption";
                     case "TimeCorruption":
-                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                        /*if (opponentHealth <= GetStatAttack() * 2 + 2)
                             return "Time";
-                        else return "Corruption";
+                        else*/ return "Corruption";
                 }
                 break;
             case 101: // 상대는 내가 목표가 아니라는 것을 알고 있고 천적이 아니라고 생각함
@@ -2958,9 +3012,9 @@ public class PlayerControl : NetworkBehaviour
                     case "LifeTime":
                         return "Life";
                     case "LifeCorruption":
-                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                        /*if (opponentHealth <= GetStatAttack() * 2 + 2)
                             return "Life";
-                        else return "Corruption";
+                        else*/ return "Corruption";
                     case "LightDark":
                         return "Light";
                     case "LightTime":
@@ -3004,7 +3058,8 @@ public class PlayerControl : NetworkBehaviour
                     case "AttackTime":
                         return "Time";
                     case "AttackCorruption":
-                        return "Attack";
+                        //return "Attack";
+                        return "Corruption";
                     case "LifeLight":
                         return "Light";
                     case "LifeDark":
@@ -3012,9 +3067,9 @@ public class PlayerControl : NetworkBehaviour
                     case "LifeTime":
                         return "Time";
                     case "LifeCorruption":
-                        if (opponentHealth <= GetStatAttack() * 2 + 2)
+                        /*if (opponentHealth <= GetStatAttack() * 2 + 2)
                             return "Life";
-                        else return "Corruption";
+                        else*/ return "Corruption";
                     case "LightDark":
                         return "Dark";
                     case "LightTime":
@@ -3026,7 +3081,8 @@ public class PlayerControl : NetworkBehaviour
                     case "DarkCorruption":
                         return "Corruption";
                     case "TimeCorruption":
-                        return "Time";
+                        //return "Time";
+                        return "Corruption";
                 }
                 break;
             case 111: // 상대는 내가 목표라는 것을 알고 있고 천적이 아니라고 생각함
@@ -3182,7 +3238,7 @@ public class PlayerControl : NetworkBehaviour
                                 case "Light": score = 32; break;
                                 case "Dark": score = 25; break;
                                 case "Time": score = 25; break;
-                                case "Corruption": score = 16; break;
+                                case "Corruption": score = 6; break;
                             }
                         }
                         else
@@ -3195,7 +3251,7 @@ public class PlayerControl : NetworkBehaviour
                                 case "Light": score = 52; break;
                                 case "Dark": score = 36; break;
                                 case "Time": score = 52; break;
-                                case "Corruption": score = 36; break;
+                                case "Corruption": score = 14; break;
                             }
                         }
                         if ((playerClass % 100) / 10 == 1)
@@ -3232,7 +3288,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Life": score = 25; break;
                             case "Dark": score = 34; break;
                             case "Time": score = 18; break;
-                            case "Corruption": score = 9; break;
+                            case "Corruption": score = 3; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
@@ -3247,7 +3303,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Life": score = 4; break;
                             case "Light": score = 4; break;
                             case "Time": score = 4; break;
-                            case "Corruption": score = 4; break;
+                            case "Corruption": score = 2; break;
                         }
                         if ((playerClass % 100) / 10 == 1)
                         {
@@ -3262,20 +3318,21 @@ public class PlayerControl : NetworkBehaviour
                     case "Time":
                         switch (opponentCard)
                         {
-                            case "Element": score = 4; break;
-                            case "Attack": score = 2; break;
+                            case "Element": score = 8; break;
+                            case "Attack": score = 6; break;
                             case "Life": score = 13; break;
                             case "Light": score = 20; break;
                             case "Dark": score = 29; break;
-                            case "Corruption": score = 4; break;
+                            case "Corruption": score = 2; break;
                         }
                         if (GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() * 2 + 2) score /= 2;
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
                             && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
                             score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
+                        if ((playerClass % 100) / 10 == 1) score += 5; // 천적에게 교환할 확률 증가
                         break;
                     case "Corruption":
-                        if (statTactic == 1)
+                        if (statTactic == 3)
                         {
                             switch (opponentCard)
                             {
@@ -3292,12 +3349,12 @@ public class PlayerControl : NetworkBehaviour
                         {
                             switch (opponentCard)
                             {
-                                case "Element": score = 29; break;
-                                case "Attack": score = 14 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
-                                case "Life": score = 41; break;
-                                case "Light": score = 41; break;
-                                case "Dark": score = 50; break;
-                                case "Time": score = 29; break;
+                                case "Element": score = 53; break;
+                                case "Attack": score = 38 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
+                                case "Life": score = 65; break;
+                                case "Light": score = 65; break;
+                                case "Dark": score = 74; break;
+                                case "Time": score = 53; break;
                             }
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
@@ -3305,6 +3362,8 @@ public class PlayerControl : NetworkBehaviour
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
                             && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
                             score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
+                        if (bm.GetTurnPlayer().Equals(this)) score += 10;
+                        if (!bm.GetTurnPlayer().Equals(this) && (playerClass % 100) / 10 == 1) score -= 6;
                         break;
                 }
                 break;
@@ -3330,7 +3389,7 @@ public class PlayerControl : NetworkBehaviour
                                 case "Light": score = 29; break;
                                 case "Dark": score = 29; break;
                                 case "Time": score = 4; break;
-                                case "Corruption": score = 4; break;
+                                case "Corruption": score = 2; break;
                             }
                         }
                         else
@@ -3360,7 +3419,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Light": score = 61; break;
                             case "Dark": score = 45; break;
                             case "Time": score = 52; break;
-                            case "Corruption": score = 36; break;
+                            case "Corruption": score = 14; break;
                         }
                         if ((playerClass % 100) / 10 == 0 && opponentHealth <= 20)
                             score += 6; // 천적이 아닌 상대가 체력이 낮으면 확률 증가
@@ -3382,7 +3441,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Life": score = 41; break;
                             case "Dark": score = 32; break;
                             case "Time": score = 32; break;
-                            case "Corruption": score = 16; break;
+                            case "Corruption": score = 6; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
@@ -3397,7 +3456,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Life": score = 9; break;
                             case "Light": score = 9; break;
                             case "Time": score = 13; break;
-                            case "Corruption": score = 5; break;
+                            case "Corruption": score = 3; break;
                         }
                         if ((playerClass % 100) / 10 == 0 && opponentHealth <= 20)
                             score += 4; // 천적이 아닌 상대가 체력이 낮으면 확률 증가
@@ -3411,16 +3470,17 @@ public class PlayerControl : NetworkBehaviour
                     case "Time":
                         switch (opponentCard)
                         {
-                            case "Element": score = 2; break;
-                            case "Attack": score = 1; break;
+                            case "Element": score = 6; break;
+                            case "Attack": score = 4; break;
                             case "Life": score = 26; break;
                             case "Light": score = 26; break;
-                            case "Dark": score = 10; break;
+                            case "Dark": score = 16; break;
                             case "Corruption": score = 1; break;
                         }
+                        if ((playerClass % 100) / 10 == 1) score += 5; // 천적에게 교환할 확률 증가
                         break;
                     case "Corruption":
-                        if (statTactic == 1)
+                        if (statTactic == 3)
                         {
                             switch (opponentCard)
                             {
@@ -3437,12 +3497,12 @@ public class PlayerControl : NetworkBehaviour
                         {
                             switch (opponentCard)
                             {
-                                case "Element": score = 24; break;
-                                case "Attack": score = 20 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
-                                case "Life": score = 52; break;
-                                case "Light": score = 52; break;
-                                case "Dark": score = 45; break;
-                                case "Time": score = 37; break;
+                                case "Element": score = 29; break;
+                                case "Attack": score = 40 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
+                                case "Life": score = 80; break;
+                                case "Light": score = 80; break;
+                                case "Dark": score = 71; break;
+                                case "Time": score = 64; break;
                             }
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 10; // 천적에게 교환할 확률 감소
@@ -3450,6 +3510,8 @@ public class PlayerControl : NetworkBehaviour
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
                             && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
                             score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
+                        if (bm.GetTurnPlayer().Equals(this)) score += 10;
+                        if (!bm.GetTurnPlayer().Equals(this) && (playerClass % 100) / 10 == 1) score -= 6;
                         break;
                 }
                 break;
@@ -3472,7 +3534,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Light": score = 50; break;
                             case "Dark": score = 29; break;
                             case "Time": score = 34; break;
-                            case "Corruption": score = 25; break;
+                            case "Corruption": score = 9; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
@@ -3487,7 +3549,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Light": score = 18; break;
                             case "Dark": score = 25; break;
                             case "Time": score = 9; break;
-                            case "Corruption": score = 9; break;
+                            case "Corruption": score = 3; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
@@ -3502,7 +3564,7 @@ public class PlayerControl : NetworkBehaviour
                             case "Life": score = 65; break;
                             case "Dark": score = 58; break;
                             case "Time": score = 61; break;
-                            case "Corruption": score = 49; break;
+                            case "Corruption": score = 18; break;
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
@@ -3517,22 +3579,23 @@ public class PlayerControl : NetworkBehaviour
                             case "Life": score = 4; break;
                             case "Light": score = 5; break;
                             case "Time": score = 4; break;
-                            case "Corruption": score = 2; break;
+                            case "Corruption": score = 1; break;
                         }
                         break;
                     case "Time":
                         switch (opponentCard)
                         {
-                            case "Element": score = 4; break;
-                            case "Attack": score = 2; break;
+                            case "Element": score = 8; break;
+                            case "Attack": score = 6; break;
                             case "Life": score = 13; break;
                             case "Light": score = 20; break;
                             case "Dark": score = 20; break;
-                            case "Corruption": score = 4; break;
+                            case "Corruption": score = 2; break;
                         }
+                        if ((playerClass % 100) / 10 == 1) score += 5; // 천적에게 교환할 확률 증가
                         break;
                     case "Corruption":
-                        if (statTactic == 1)
+                        if (statTactic == 3)
                         {
                             switch (opponentCard)
                             {
@@ -3549,12 +3612,12 @@ public class PlayerControl : NetworkBehaviour
                         {
                             switch (opponentCard)
                             {
-                                case "Element": score = 35; break;
-                                case "Attack": score = 26 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
-                                case "Life": score = 61; break;
-                                case "Light": score = 61; break;
-                                case "Dark": score = 54; break;
-                                case "Time": score = 50; break;
+                                case "Element": score = 64; break;
+                                case "Attack": score = 42 - (bm.GetPlayers()[opponentPlayerIndex].GetStatAttack() / 2); break;
+                                case "Life": score = 93; break;
+                                case "Light": score = 93; break;
+                                case "Dark": score = 86; break;
+                                case "Time": score = 72; break;
                             }
                         }
                         if ((playerClass % 100) / 10 == 1) score -= 5; // 천적에게 교환할 확률 감소
@@ -3562,6 +3625,8 @@ public class PlayerControl : NetworkBehaviour
                         if ((opponentCard.Equals("Attack") || opponentCard.Equals("Element"))
                             && GetHealth() <= bm.GetPlayers()[opponentPlayerIndex].GetStatAttack())
                             score /= 2; // 자신이 킬각이고 상대가 공격 카드를 낼 것으로 예측한 경우 교환할 확률 대폭 감소
+                        if (bm.GetTurnPlayer().Equals(this)) score += 10;
+                        if (!bm.GetTurnPlayer().Equals(this) && (playerClass % 100) / 10 == 1) score -= 6;
                         break;
                 }
                 break;
@@ -3584,19 +3649,19 @@ public class PlayerControl : NetworkBehaviour
 
     public void AIAttackUp()
     {
-        if (currentAttack < 99 && currentExperience >= 5)
+        if (currentAttack < 99 && currentExperience >= 4)
         {
             currentAttack++;
-            currentExperience -= 5;
+            currentExperience -= 4;
         }
     }
     
     public void AIAuthorityUp()
     {
-        if (currentAuthority < 99 && currentExperience >= 5)
+        if (currentAuthority < 99 && currentExperience >= 2)
         {
             currentAuthority++;
-            currentExperience -= 5;
+            currentExperience -= 2;
         }
     }
 

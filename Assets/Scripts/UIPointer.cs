@@ -10,6 +10,7 @@ public class UIPointer : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     private int active;
 
     public GameObject tooltipBox;
+    public TutorialUI tutorialPanel;
     private static TooltipUI tooltip;
 
     void Awake()
@@ -62,6 +63,7 @@ public class UIPointer : MonoBehaviour, IPointerEnterHandler, IPointerExitHandle
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (Alert.alert == null) return;
+        tutorialPanel.Check();
         active = kind;
     }
 

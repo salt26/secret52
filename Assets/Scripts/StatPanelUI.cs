@@ -34,6 +34,8 @@ public class StatPanelUI : MonoBehaviour {
     public Text dMntlText;
     public Text dExpText;
 
+    public TutorialUI tutorialPanel;
+
     [HideInInspector] public int currentAttack;     // 확정 후 공격력 (PlayerControl에서 직접 받아옴)
     [HideInInspector] public int currentAuthority;  // 확정 후 권력 (PlayerControl에서 직접 받아옴)
     [HideInInspector] public int currentMentality;  // 확정 후 정신력 (PlayerControl에서 직접 받아옴)
@@ -245,7 +247,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void Confirm()
     {
-        if (player == null || !isDistribTime || isConfirmed) return;
+        if (player == null || !isDistribTime || isConfirmed || tutorialPanel.GetIsOn()) return;
         player.StatConfirm();
         isConfirmed = true;
         canRedo = false;
@@ -285,7 +287,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void Redo()
     {
-        if (player == null || !isDistribTime || isConfirmed || !canRedo) return;
+        if (player == null || !isDistribTime || isConfirmed || !canRedo || tutorialPanel.GetIsOn()) return;
         canRedo = false;
         player.StatRedo();
         redoButton.color = SetAlphaTo96(redoButton.color);
@@ -296,7 +298,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpAttack()
     {
-        if (player == null || !isDistribTime || isConfirmed || !canUpAttack) return;
+        if (player == null || !isDistribTime || isConfirmed || !canUpAttack || tutorialPanel.GetIsOn()) return;
         player.StatAttackUp();
         if (!canRedo)
         {
@@ -310,7 +312,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpAuthority()
     {
-        if (player == null || !isDistribTime || isConfirmed || !canUpAuthority) return;
+        if (player == null || !isDistribTime || isConfirmed || !canUpAuthority || tutorialPanel.GetIsOn()) return;
         player.StatAuthorityUp();
         if (!canRedo)
         {
@@ -324,7 +326,7 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpMentality()
     {
-        if (player == null || !isDistribTime || isConfirmed || !canUpMentality) return;
+        if (player == null || !isDistribTime || isConfirmed || !canUpMentality || tutorialPanel.GetIsOn()) return;
         player.StatMentalityUp();
         if (!canRedo)
         {
