@@ -152,6 +152,7 @@ namespace Prototype.NetworkLobby
         {
             var _this = this;
             infoPanel.Display("Connecting...", "Cancel", () => { _this.backDelegate(); });
+            backButton.gameObject.SetActive(false);
         }
 
         public void SetServerInfo(string status, string host)
@@ -530,6 +531,7 @@ namespace Prototype.NetworkLobby
             base.OnClientConnect(conn);
 
             infoPanel.gameObject.SetActive(false);
+            backButton.gameObject.SetActive(true);
 
             conn.RegisterHandler(MsgKicked, KickedMessageHandler);
 

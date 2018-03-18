@@ -48,7 +48,7 @@ public class StatPanelUI : MonoBehaviour {
     private bool canUpAttack;
     private bool canUpAuthority;
     private bool canUpMentality;
-    private PlayerControl player;
+    private PlayerControl localPlayer;
 
     void Awake()
     {
@@ -69,14 +69,14 @@ public class StatPanelUI : MonoBehaviour {
             return;
         }
 
-        if (isOpen && player != null)
+        if (isOpen && localPlayer != null)
         {
             if (!isDistribTime)
             {
-                cAtckText.text = player.GetStatAttack().ToString();
-                cAthrText.text = player.GetStatAuthority().ToString();
-                cMntlText.text = player.GetStatMentality().ToString();
-                cExpText.text = player.GetExperience().ToString();
+                cAtckText.text = localPlayer.GetStatAttack().ToString();
+                cAthrText.text = localPlayer.GetStatAuthority().ToString();
+                cMntlText.text = localPlayer.GetStatMentality().ToString();
+                cExpText.text = localPlayer.GetExperience().ToString();
             }
             else
             {
@@ -85,10 +85,10 @@ public class StatPanelUI : MonoBehaviour {
                 cMntlText.text = currentMentality.ToString();
                 cExpText.text = currentExperience.ToString();
             }
-            dAtckText.text = player.GetStatAttack().ToString();
-            dAthrText.text = player.GetStatAuthority().ToString();
-            dMntlText.text = player.GetStatMentality().ToString();
-            dExpText.text = player.GetExperience().ToString();
+            dAtckText.text = localPlayer.GetStatAttack().ToString();
+            dAthrText.text = localPlayer.GetStatAuthority().ToString();
+            dMntlText.text = localPlayer.GetStatMentality().ToString();
+            dExpText.text = localPlayer.GetExperience().ToString();
             uMntlText.text = "-" + (currentMentality + 1).ToString() + "\nExp";
         }
 
@@ -241,14 +241,14 @@ public class StatPanelUI : MonoBehaviour {
     public void SetLocalPlayer(PlayerControl pc)
     {
         if (pc == null) return;
-        player = pc;
+        localPlayer = pc;
         //Debug.Log("SetLocalPlayer " + player.GetName());
     }
 
     public void Confirm()
     {
-        if (player == null || !isDistribTime || isConfirmed || tutorialPanel.GetIsOn()) return;
-        player.StatConfirm();
+        if (localPlayer == null || !isDistribTime || isConfirmed || tutorialPanel.GetIsOn()) return;
+        localPlayer.StatConfirm();
         isConfirmed = true;
         canRedo = false;
         canUpAttack = false;
@@ -287,9 +287,9 @@ public class StatPanelUI : MonoBehaviour {
 
     public void Redo()
     {
-        if (player == null || !isDistribTime || isConfirmed || !canRedo || tutorialPanel.GetIsOn()) return;
+        if (localPlayer == null || !isDistribTime || isConfirmed || !canRedo || tutorialPanel.GetIsOn()) return;
         canRedo = false;
-        player.StatRedo();
+        localPlayer.StatRedo();
         redoButton.color = SetAlphaTo96(redoButton.color);
         redoBorder.color = SetAlphaTo96(redoBorder.color);
         redoText.color = SetAlphaTo96(redoText.color);
@@ -298,8 +298,8 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpAttack()
     {
-        if (player == null || !isDistribTime || isConfirmed || !canUpAttack || tutorialPanel.GetIsOn()) return;
-        player.StatAttackUp();
+        if (localPlayer == null || !isDistribTime || isConfirmed || !canUpAttack || tutorialPanel.GetIsOn()) return;
+        localPlayer.StatAttackUp();
         if (!canRedo)
         {
             canRedo = true;
@@ -312,8 +312,8 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpAuthority()
     {
-        if (player == null || !isDistribTime || isConfirmed || !canUpAuthority || tutorialPanel.GetIsOn()) return;
-        player.StatAuthorityUp();
+        if (localPlayer == null || !isDistribTime || isConfirmed || !canUpAuthority || tutorialPanel.GetIsOn()) return;
+        localPlayer.StatAuthorityUp();
         if (!canRedo)
         {
             canRedo = true;
@@ -326,8 +326,8 @@ public class StatPanelUI : MonoBehaviour {
 
     public void UpMentality()
     {
-        if (player == null || !isDistribTime || isConfirmed || !canUpMentality || tutorialPanel.GetIsOn()) return;
-        player.StatMentalityUp();
+        if (localPlayer == null || !isDistribTime || isConfirmed || !canUpMentality || tutorialPanel.GetIsOn()) return;
+        localPlayer.StatMentalityUp();
         if (!canRedo)
         {
             canRedo = true;

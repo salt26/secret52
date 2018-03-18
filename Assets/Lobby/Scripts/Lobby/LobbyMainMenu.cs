@@ -1,6 +1,9 @@
 using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace Prototype.NetworkLobby
 {
@@ -15,6 +18,19 @@ namespace Prototype.NetworkLobby
 
         public InputField ipInput;
         public InputField matchNameInput;
+
+        private float quitTime = -2f;
+
+        void Update()
+        {
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (Time.time < quitTime + 1f)
+                    OnClickQuitGame();
+                else
+                    quitTime = Time.time;
+            }
+        }
 
         public void OnEnable()
         {
@@ -147,7 +163,11 @@ namespace Prototype.NetworkLobby
 
         public void OnClickQuitGame()
         {
-            Application.Quit();
+#if UNITY_EDITOR
+            EditorApplication.isPlaying = false;
+#else 
+		    Application.Quit();
+#endif
         }
 
         void onEndEditIP(string text)

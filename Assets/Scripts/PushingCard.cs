@@ -112,7 +112,7 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void OnDrag(PointerEventData eventData)
     {
         if ((localPlayer.Equals(bm.GetTurnPlayer()) && localPlayer.GetObjectTarget() != null && bm.GetTurnStep() == 2)
-            || (localPlayer.Equals(bm.GetObjectPlayer()) && bm.GetTurnStep() == 3))
+            || (localPlayer.Equals(bm.GetObjectPlayer()) && bm.GetTurnStep() == 3) && !localPlayer.GetIsInTutorial())
         {
             if (bm.GetPlayerSelectedCard(localPlayer) == null && Input.touchCount <= 1
                 && (StatPanelUI.statPanelUI == null || !StatPanelUI.statPanelUI.GetIsOpen())
@@ -130,8 +130,9 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
     public void OnEndDrag(PointerEventData eventData)
     {
         localPlayer.SetCardDragging(false);
-        if (transform.position.y >= Screen.height * 8 / 16)
+        if (!pusher.GetEndDragCooltime() && transform.position.y >= Screen.height * 8 / 16)
         {
+            pusher.SetStartEndDragCooltime();
             if (CompareTag("Left"))
             {
                 pusher.MoveCardUp(cardx, new Vector3(cardOriginal.x, Screen.height * 3 / 2), tag);
@@ -144,7 +145,7 @@ public class PushingCard : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndD
             }
             else
             {
-                //Debug.Log("Card is not appropriate.");
+                Debug.Log("Card is not appropriate.");
                 //LogDisplay.AddText("Card is not appropriate.");
             }
         }

@@ -29,6 +29,7 @@ public class Pusher : MonoBehaviour
     [SerializeField] bool moved;
     bool selected;
     bool freezed;
+    bool endDragCooltime;
 
     public Image glacier;
     private Image freeze;
@@ -48,6 +49,7 @@ public class Pusher : MonoBehaviour
         cardUIR = cardUI[2];
         moved = false;
         selected = false;
+        endDragCooltime = false;
         freezed = false;
         ExchangeComplete = false;
         opponentPlayerCardCode = -1;
@@ -138,6 +140,8 @@ public class Pusher : MonoBehaviour
             Destroy(freeze);
             freezed = false;
         }
+
+        //if (bm.GetTurnStep() == 16 && process.Count > 0) StartCoroutine(process.Dequeue());
     }
 
     public IEnumerator AfterSmallMove()
@@ -205,6 +209,7 @@ public class Pusher : MonoBehaviour
             GameObject.FindGameObjectWithTag(LR).transform.position = Vector3.Lerp(CardPosition, det, (Time.time - t) / ((2f / 3f) * (s * 3 / 2 - x) / (s * 8 / 16)));
             yield return null;
         }
+        endDragCooltime = false;
     }
 
     public void MoveCardDown(Vector3 start, Vector3 dest, string LF)
@@ -293,5 +298,15 @@ public class Pusher : MonoBehaviour
         {
             opponentPlayerCardCode = TPCardCode;
         }
+    }
+
+    public bool GetEndDragCooltime()
+    {
+        return endDragCooltime;
+    }
+
+    public void SetStartEndDragCooltime()
+    {
+        endDragCooltime = true;
     }
 }

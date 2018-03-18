@@ -64,6 +64,7 @@ public class PlayerControl : NetworkBehaviour
     private GameObject cannotRequestTextW2;
     private SpriteRenderer elementSprite;
     private TooltipUI tooltip;
+    private TutorialUI tutorialUI;
 
     public GameObject Ice;
     public GameObject targetMark;
@@ -86,6 +87,7 @@ public class PlayerControl : NetworkBehaviour
     private bool isThinking;    // 인공지능의 생각 전 딜레이 동안 true가 됨
     private bool isCardDragging;  // 큰 카드를 드래그하는 동안 true가 됨
     private bool isShowingChange;   // 체력 변화량을 표시하는 애니메이션이 실행될 동안 true가 됨
+    private bool isTutorial;    // 처음에 true, 튜토리얼이 종료하면 false가 됨
 
     void Awake () {
         // bm은 Awake에서 아직 로딩되지 않았을 수 있음. 즉, BattleManager.Awake가 PlayerControl.Awake보다 늦게 실행될 수 있음. 
@@ -118,6 +120,7 @@ public class PlayerControl : NetworkBehaviour
         isThinking = false;
         isCardDragging = false;
         isShowingChange = false;
+        isTutorial = true;
         statAttack = 4;     // 초기값 4로 설정
         statAuthority = 1;  // 초기값 1로 설정
         statMentality = 3;  // 초기값 3으로 설정
@@ -187,6 +190,8 @@ public class PlayerControl : NetworkBehaviour
         PushingCard.localPlayer = this;
         Pusher.localPlayer = this;
         Card.localPlayer = this;
+        tutorialUI = GameObject.Find("CardTutorialPanel").GetComponent<TutorialUI>();
+        tutorialUI.gameObject.SetActive(false);
         ObjectiveHighlight();
     }
     
@@ -276,6 +281,17 @@ public class PlayerControl : NetworkBehaviour
         attackUIText.GetComponent<Text>().text = statAttack.ToString();
         authorityUIText.GetComponent<Text>().text = statAuthority.ToString();
 
+        if (isLocalPlayer && isTutorial && !tutorialUI.gameObject.activeInHierarchy
+            && ((bm.GetTurnStep() == 2 && bm.GetTurnPlayer().Equals(this))
+            || (bm.GetTurnStep() == 3 && bm.GetObjectPlayer() != null && bm.GetObjectPlayer().Equals(this)))
+            && !StatPanelUI.statPanelUI.GetIsOpen() && !LogPanelUI.logPanelUI.GetIsOpen()) {
+            tutorialUI.gameObject.SetActive(true);
+        }
+        else if (GetIsInTutorial() && (StatPanelUI.statPanelUI.GetIsOpen() || LogPanelUI.logPanelUI.GetIsOpen()))
+        {
+            tutorialUI.gameObject.SetActive(false);
+        }
+
         /* 툴팁을 표시하기 위한 코드입니다. */
         if (isLocalPlayer && Input.GetMouseButton(0) && Input.touchCount <= 1 && !isCardDragging
             && !StatPanelUI.statPanelUI.GetIsOpen() && !LogPanelUI.logPanelUI.GetIsOpen())
@@ -303,6 +319,11 @@ public class PlayerControl : NetworkBehaviour
                     tooltip.SetText(cd.GetCardInfo(c).GetNameText(),
                         cd.GetCardInfo(c).GetColor(), cd.GetCardInfo(c).GetDetailText());
                     tooltip.Appear();
+                    if (GetIsInTutorial())  // 튜토리얼 창이 뜬 상태이면 튜토리얼을 종료한다.
+                    {
+                        tutorialUI.Check();
+                        isTutorial = false;
+                    }
                 }
                 else if (hit.collider.gameObject.GetComponentInParent<Card>() != null
                     && Alert.alert != null && cd != null && tooltip == null)
@@ -311,6 +332,11 @@ public class PlayerControl : NetworkBehaviour
                     tooltip = t.GetComponent<TooltipUI>();
                     tooltip.SetText("받을 때 피해를 받는 공격 카드입니다. 상대 손에 있을 때는 공개되지 않습니다.");
                     tooltip.Appear();
+                    if (GetIsInTutorial())  // 튜토리얼 창이 뜬 상태이면 튜토리얼을 종료한다.
+                    {
+                        tutorialUI.Check();
+                        isTutorial = false;
+                    }
                 }
                 else if ((hit.collider.gameObject.GetComponentInParent<Card>() == null
                     /*|| !(hit.collider.gameObject.GetComponentInParent<Card>().Equals(hand[0])
@@ -607,7 +633,7 @@ public class PlayerControl : NetworkBehaviour
     {
         if (!isServer || bm == null) return;
         List<Exchange> exchanges = bm.GetExchanges();
-        List<int> unknowns = GetUnknownElements();
+        List<int> unknowns;
         List<List<bool>> table = new List<List<bool>>();
         bool again = false; // 간접적으로 누군가의 속성이 밝혀지면, 한 번 더 이 함수를 실행해서 새로운 누군가의 속성이 밝혀질 수 있다.
         for (int i = 0; i < 5; i++)
@@ -694,6 +720,7 @@ public class PlayerControl : NetworkBehaviour
 
             }
         }
+        unknowns = GetUnknownElements();
         for (int i = 0; i < 5; i++)
         {
             if (GetUnveiled(i)) continue;
@@ -711,7 +738,7 @@ public class PlayerControl : NetworkBehaviour
                 // TODO 잘 동작하는지 확인해 볼 것.
             }
         }
-
+        unknowns = GetUnknownElements();
         // 속성을 모르는 다른 모든 상대에게 같은 속성 공격을 한 경우
         // 나머지 한 명의 속성을 확실히 알 수 있다.
         foreach (int j in unknowns)
@@ -863,7 +890,8 @@ public class PlayerControl : NetworkBehaviour
     [ClientCallback]
     public void PlayerToSelectTarget()
     {
-        if (!isLocalPlayer) return;
+        // 튜토리얼이 완료되지 않으면 교환 대상 지정 불가
+        if (!isLocalPlayer || GetIsInTutorial()) return;
 
         // 내 턴이 아니면 패스
         if (!bm.GetTurnPlayer().Equals(this)) return;
@@ -991,9 +1019,9 @@ public class PlayerControl : NetworkBehaviour
     }
     */
 
-                /// <summary>
-                /// 선택한 대상에게 교환 요청을 거는 것을 확정짓는 함수입니다. turnStep이 2일 때만 작동합니다.
-                /// </summary>
+    /// <summary>
+    /// 선택한 대상에게 교환 요청을 거는 것을 확정짓는 함수입니다. turnStep이 2일 때만 작동합니다.
+    /// </summary>
     [ClientCallback]
     public void DecideClicked()
     {
@@ -1001,6 +1029,7 @@ public class PlayerControl : NetworkBehaviour
         {
             return;
         }
+
         if (!isLocalPlayer) return;
         // 내 턴이 아니면 패스
         else if (!bm.GetTurnPlayer().Equals(this))
@@ -1196,6 +1225,18 @@ public class PlayerControl : NetworkBehaviour
     }
 
     /// <summary>
+    /// 튜토리얼이 종료되지 않았고 튜토리얼 창이 떠 있는 동안 true를 반환합니다.
+    /// isLocalPlayer가 true인 경우에만 작동합니다.
+    /// </summary>
+    /// <returns></returns>
+    public bool GetIsInTutorial()
+    {
+        return (isLocalPlayer && isTutorial && tutorialUI.gameObject.activeInHierarchy && tutorialUI.GetIsOn()
+            /*&& ((bm.GetTurnStep() == 2 && bm.GetTurnPlayer().Equals(this))
+            || (bm.GetTurnStep() == 3 && bm.GetObjectPlayer() != null && bm.GetObjectPlayer().Equals(this)))*/);
+    }
+
+    /// <summary>
     /// AI가 true이면 이 플레이어를 인공지능 플레이어로 설정하는 함수입니다.
     /// 인공지능으로 설정되면 능력치 분배 전략이 함께 결정됩니다.
     /// </summary>
@@ -1211,28 +1252,32 @@ public class PlayerControl : NetworkBehaviour
             return;
         }
 
+        isTutorial = false;
+
         List<int> randomBox = new List<int>();
-        randomBox.Add(3);
         for (int i = 0; i < 4; i++)
         {
             randomBox.Add(3);
             randomBox.Add(4);
         }
+        randomBox.Add(4);
         randomBox.Add(5);
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 3; i++)
         {
             randomBox.Add(5);
             randomBox.Add(6);
         }
         randomBox.Add(7);
+        randomBox.Add(7);
         randomBox.Add(8);
         randomBox.Add(9);
+        randomBox.Add(10);
         statMntlMaxAI = randomBox[Random.Range(0, randomBox.Count)];
 
         randomBox.Clear();
         randomBox.Add(1);
         randomBox.Add(2);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 2; i++)
         {
             randomBox.Add(3);
         }
@@ -1241,7 +1286,7 @@ public class PlayerControl : NetworkBehaviour
             randomBox.Add(3);
             randomBox.Add(4);
         }
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 3; i++)
         {
             if (statMntlMaxAI >= 4)
             {
@@ -1255,6 +1300,7 @@ public class PlayerControl : NetworkBehaviour
         if (statMntlMaxAI >= 6)
         {
             randomBox.Add(5);
+            randomBox.Add(6);
             randomBox.Add(6);
         }
         for (int i = 6; i <= statMntlMaxAI; i++)
@@ -1299,13 +1345,18 @@ public class PlayerControl : NetworkBehaviour
             randomBox.Add(2);
 
             // 정신력 최소 유지치가 1일 때에만 타락 테크를 탈 수 있다.
-            for (int i = 0; i < 5; i++) randomBox.Add(3);
+            for (int i = 0; i < 5; i++)
+            {
+                randomBox.Add(3);
+                randomBox.Add(4);
+            }
         }
         statTactic = randomBox[Random.Range(0, randomBox.Count)];
         // statTactic이 0이면 권력과 공격력을 랜덤으로 반반씩 올린다.
         // 1이면 공격력 위주로 올린다.
         // 2이면 권력 위주로 올린다.
-        // 3이면 정신력을 올리지 않고 타락을 손에 쟁여놓는다.
+        // 3이면 정신력을 올리지 않고 타락을 손에 쟁여놓는다. 그리고 공격력 위주로 올린다.
+        // 4이면 정신력을 올리지 않고 타락을 손에 쟁여놓는다. 그리고 권력 위주로 올린다.
     }
 
     /*
@@ -2043,15 +2094,15 @@ public class PlayerControl : NetworkBehaviour
         */
 
         // 타락 테크가 아닌데 어떤 이유로 정신력이 1이 되면 1/3 확률로 타락 테크로 전향한다.
-        if (currentMentality == 1 && statTactic != 3 && Random.Range(0, 3) == 0)
+        if (currentMentality == 1 && statTactic < 3 && Random.Range(0, 3) == 0)
         {
             statMntlMinAI = 1;
             statMntlMaxAI = 0;
-            statTactic = 3;
+            statTactic = Random.Range(3, 5);
         }
 
         // 타락 테크일 때 정신력 최대 목표치에 도달하지 못하더라도 정신력이 2 이하가 되면 정신력 올리기를 포기한다.
-        if (currentMentality <= 2 && statTactic == 3 && statMntlMaxAI > 0)
+        if (currentMentality <= 2 && statTactic >= 3 && statMntlMaxAI > 0)
         {
             statMntlMaxAI = 0;
         }
@@ -2172,10 +2223,17 @@ public class PlayerControl : NetworkBehaviour
             }
         }
 
-        // 타락 테크인 경우 공격력만 올린다.
+        // 타락+공격 테크인 경우 공격력만 올린다.
         while (currentExperience >= 4 && statTactic == 3)
         {
             AIAttackUp();
+            yield return null;
+        }
+
+        // 타락+권력 테크인 경우 권력만 올린다.
+        while (currentExperience >= 2 && statTactic == 4)
+        {
+            AIAuthorityUp();
             yield return null;
         }
 
@@ -2197,7 +2255,7 @@ public class PlayerControl : NetworkBehaviour
                 randomBox.Add(1);
                 randomBox.Add(1);
             }
-            else if (statTactic == 2)
+            else if (statTactic == 2 || statTactic == 4)
             {
                 // 권력 테크
                 randomBox.Add(0); // 권력
@@ -2235,7 +2293,8 @@ public class PlayerControl : NetworkBehaviour
         }
 
         // 권력 테크인 경우 남는 경험치를 권력에 모두 투자한다.
-        while (currentExperience >= 2 && (statTactic == 2 || Random.Range(0, 2) == 0))
+        // 권력 테크가 아니더라도 타락+공격 테크가 아니면 1/2 확률로 남는 경험치를 권력에 투자할 수 있다.
+        while (currentExperience >= 2 && (statTactic == 2 || (statTactic != 3 && Random.Range(0, 2) == 0)))
         {
             AIAuthorityUp();
             yield return null;
@@ -2430,7 +2489,8 @@ public class PlayerControl : NetworkBehaviour
                 else if (ex.GetObjectPlayerCard().GetCardCode() < 5)     // 상대가 공격 카드를 냈다면
                 {
                     enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] += 1;
-                    if (hasEnemyKnowMe[ex.GetObjectPlayer().GetPlayerIndex()])  // 상대가 내 속성을 알고 내 속성이 아닌 카드로 공격했다면
+                    if (hasEnemyKnowMe[ex.GetObjectPlayer().GetPlayerIndex()]
+                        && ex.GetTurnPlayerCard().GetCardName() != "Time")  // 상대가 내 속성을 알고 내 속성이 아닌 카드로 공격했다면
                     {
                         enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] += 2;
                     }
@@ -2443,7 +2503,8 @@ public class PlayerControl : NetworkBehaviour
                 else if (ex.GetObjectPlayerCard().GetCardName() == "Life") // 상대가 생명 카드를 냈다면
                 {
                     enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] -= 2;
-                    if (hasEnemyKnowMe[ex.GetObjectPlayer().GetPlayerIndex()])  // 상대가 내 속성을 알고 생명 카드를 냈다면
+                    if (hasEnemyKnowMe[ex.GetObjectPlayer().GetPlayerIndex()]
+                        && ex.GetTurnPlayerCard().GetCardName() != "Time")  // 상대가 내 속성을 알고 생명 카드를 냈다면
                     {
                         enemyPoint[ex.GetObjectPlayer().GetPlayerIndex()] -= 2;
                     }
@@ -2468,7 +2529,8 @@ public class PlayerControl : NetworkBehaviour
                 else if (ex.GetTurnPlayerCard().GetCardCode() < 5)
                 {
                     enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] += 1;
-                    if (hasEnemyKnowMe[ex.GetTurnPlayer().GetPlayerIndex()])  // 상대가 내 속성을 알고 내 속성이 아닌 카드로 공격했다면
+                    if (hasEnemyKnowMe[ex.GetTurnPlayer().GetPlayerIndex()]
+                        && ex.GetObjectPlayerCard().GetCardName() != "Time")  // 상대가 내 속성을 알고 내 속성이 아닌 카드로 공격했다면
                     {
                         enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] += 3;
                     }
@@ -2481,7 +2543,8 @@ public class PlayerControl : NetworkBehaviour
                 else if (ex.GetTurnPlayerCard().GetCardName() == "Life")
                 {
                     enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] -= 2;
-                    if (hasEnemyKnowMe[ex.GetTurnPlayer().GetPlayerIndex()])
+                    if (hasEnemyKnowMe[ex.GetTurnPlayer().GetPlayerIndex()]
+                        && ex.GetObjectPlayerCard().GetCardName() != "Time")
                     {
                         enemyPoint[ex.GetTurnPlayer().GetPlayerIndex()] -= 3;
                     }
@@ -3332,7 +3395,7 @@ public class PlayerControl : NetworkBehaviour
                         if ((playerClass % 100) / 10 == 1) score += 5; // 천적에게 교환할 확률 증가
                         break;
                     case "Corruption":
-                        if (statTactic == 3)
+                        if (statTactic >= 3)
                         {
                             switch (opponentCard)
                             {
@@ -3480,7 +3543,7 @@ public class PlayerControl : NetworkBehaviour
                         if ((playerClass % 100) / 10 == 1) score += 5; // 천적에게 교환할 확률 증가
                         break;
                     case "Corruption":
-                        if (statTactic == 3)
+                        if (statTactic >= 3)
                         {
                             switch (opponentCard)
                             {
@@ -3595,7 +3658,7 @@ public class PlayerControl : NetworkBehaviour
                         if ((playerClass % 100) / 10 == 1) score += 5; // 천적에게 교환할 확률 증가
                         break;
                     case "Corruption":
-                        if (statTactic == 3)
+                        if (statTactic >= 3)
                         {
                             switch (opponentCard)
                             {

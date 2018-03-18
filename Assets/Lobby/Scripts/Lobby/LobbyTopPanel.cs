@@ -23,6 +23,10 @@ namespace Prototype.NetworkLobby
             if (!isInGame)
             {
                 buttonText.text = "BACK";
+                if (Input.GetKeyDown(KeyCode.Escape) && LobbyManager.s_Singleton.backButton.gameObject.activeInHierarchy)
+                {
+                    LobbyManager.s_Singleton.GoBackButton();
+                }
                 return;
             }
 
