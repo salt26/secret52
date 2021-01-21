@@ -432,7 +432,7 @@ public class BattleManager : NetworkBehaviour
                         GetPlayers()[i].Unveil(j);
                     }
                 }
-                StartCoroutine(ReturnToLobby(11f, true));
+                StartCoroutine(ReturnToLobby(9f, true));
                 turnStep = 8;
             }
             else
