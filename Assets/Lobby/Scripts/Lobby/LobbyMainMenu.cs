@@ -75,7 +75,7 @@ namespace Prototype.NetworkLobby
             lobbyManager.minPlayers = 2;
             lobbyManager.maxPlayers = 5;
             lobbyManager.prematchCountdown = 5f;
-            lobbyManager.networkAddress = "147.46.242.161"; //ipInput.text;
+            lobbyManager.networkAddress = "sodrak.upnl.org"; //ipInput.text;
             lobbyManager.StartClient();
 
             lobbyManager.backDelegate = lobbyManager.StopClientClbk;
